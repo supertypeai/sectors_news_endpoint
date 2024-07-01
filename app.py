@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
 import logging
+import json
 # import dotenv
 from functools import wraps
 
@@ -31,6 +32,9 @@ db = SQLAlchemy(app)
 # logging.basicConfig(level=logging.INFO)
 # logger = logging.getLogger(__name__)
 
+with open('./data/sectors_data.json', 'r') as f:
+    sectors_data = json.load(f)
+
 class Article(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -52,8 +56,8 @@ def sanitize_and_insert(data):
     source = data.get('source').strip()
     timestamp_str = data.get('timestamp').strip()
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-    sector = data.get('sector').strip()
     subsector = data.get('subsector').strip()
+    sector = sectors_data[subsector] if subsector in sectors_data.keys() else ""
     tags = data.get('tags', []) 
     tickers = data.get('tickers', [])
 
