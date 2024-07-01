@@ -4,7 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
 import logging
+# import dotenv
 from functools import wraps
+
+# dotenv.load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
 
@@ -25,8 +28,8 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 class Article(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -36,6 +39,8 @@ class Article(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     sector = db.Column(db.String(100), nullable=False)
     subsector = db.Column(db.String(100), nullable=False)
+    tags = db.Column(db.JSON, nullable=False)  # Array of String
+    tickers = db.Column(db.JSON, nullable=False)
 
 with app.app_context():
     db.create_all()
@@ -49,6 +54,8 @@ def sanitize_and_insert(data):
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     sector = data.get('sector').strip()
     subsector = data.get('subsector').strip()
+    tags = data.get('tags', []) 
+    tickers = data.get('tickers', [])
 
     new_article = Article(
         title=title,
@@ -56,7 +63,9 @@ def sanitize_and_insert(data):
         source=source,
         timestamp=timestamp,
         sector=sector,
-        subsector=subsector
+        subsector=subsector,
+        tags=tags,
+        tickers=tickers
     )
 
     try:
@@ -84,51 +93,32 @@ def get_articles():
         'source': article.source,
         'timestamp': article.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
         'sector': article.sector,
-        'subsector': article.subsector
+        'subsector': article.subsector,
+        'tags': article.tags,  
+        'tickers': article.tickers
     } for article in articles]
     return jsonify(articles_list)
 
 @app.route('/articles/<int:id>', methods=['DELETE'])
 @require_api_key
 def delete_article(id):
-    # article = Article.query.get(id)
-    # if article is None:
-    #     return jsonify({"status": "error", "message": "Article not found"}), 404
-    # db.session.delete(article)
-    # db.session.commit()
-    # return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
-    try:
-        article = Article.query.get(id)
-        if article is None:
-            return jsonify({"status": "error", "message": "Article not found"}), 404
-        db.session.delete(article)
-        db.session.commit()
-        return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
-    except Exception as e:
-        logger.error(f"Error deleting article: {e}")
-        return jsonify({"status": "error", "message": "Internal Server Error"}), 500
+    article = Article.query.get(id)
+    if article is None:
+        return jsonify({"status": "error", "message": "Article not found"}), 404
+    db.session.delete(article)
+    db.session.commit()
+    return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
 
 @app.route('/articles/delete_n/<int:n>', methods=['DELETE'])
 @require_api_key
 def delete_first_n_articles(n):
-    # articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
-    # if not articles_to_delete:
-    #     return jsonify({"status": "error", "message": "No articles to delete"}), 404
-    # for article in articles_to_delete:
-    #     db.session.delete(article)
-    # db.session.commit()
-    # return jsonify({"status": "success", "message": f"{n} articles deleted"})
-    try:
-        articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
-        if not articles_to_delete:
-            return jsonify({"status": "error", "message": "No articles to delete"}), 404
-        for article in articles_to_delete:
-            db.session.delete(article)
-        db.session.commit()
-        return jsonify({"status": "success", "message": f"{n} articles deleted"})
-    except Exception as e:
-        logger.error(f"Error deleting first {n} articles: {e}")
-        return jsonify({"status": "error", "message": "Internal Server Error"}), 500
+    articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
+    if not articles_to_delete:
+        return jsonify({"status": "error", "message": "No articles to delete"}), 404
+    for article in articles_to_delete:
+        db.session.delete(article)
+    db.session.commit()
+    return jsonify({"status": "success", "message": f"{n} articles deleted"})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
