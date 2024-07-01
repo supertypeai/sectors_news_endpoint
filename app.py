@@ -76,7 +76,7 @@ def delete_article(id):
     db.session.commit()
     return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
 
-@app.route('/articles/delete_first_n/<int:n>', methods=['DELETE'])
+@app.route('/articles/delete_n/<int:n>', methods=['DELETE'])
 def delete_first_n_articles(n):
     articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
     if not articles_to_delete:
