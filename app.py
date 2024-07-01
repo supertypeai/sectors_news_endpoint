@@ -4,6 +4,22 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
 import logging
+from functools import wraps
+
+API_KEY = os.getenv("API_KEY")
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'Authorization' not in request.headers:
+            return jsonify({"status": "error", "message": "API key required"}), 403
+        
+        auth_header = request.headers.get('Authorization')
+        if auth_header != f"Bearer {API_KEY}":
+            return jsonify({"status": "error", "message": "Invalid API key"}), 403
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
@@ -52,6 +68,7 @@ def sanitize_and_insert(data):
         return {"status": "error", "message": "Integrity error, possibly duplicate data"}
 
 @app.route('/articles', methods=['POST'])
+@require_api_key
 def add_article():
     input_data = request.get_json()
     result = sanitize_and_insert(input_data)
@@ -72,6 +89,7 @@ def get_articles():
     return jsonify(articles_list)
 
 @app.route('/articles/<int:id>', methods=['DELETE'])
+@require_api_key
 def delete_article(id):
     # article = Article.query.get(id)
     # if article is None:
@@ -91,6 +109,7 @@ def delete_article(id):
         return jsonify({"status": "error", "message": "Internal Server Error"}), 500
 
 @app.route('/articles/delete_n/<int:n>', methods=['DELETE'])
+@require_api_key
 def delete_first_n_articles(n):
     # articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
     # if not articles_to_delete:
