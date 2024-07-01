@@ -3,11 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import os
+import logging
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Article(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -22,6 +25,7 @@ with app.app_context():
     db.create_all()
 
 def sanitize_and_insert(data):
+    # Sanitization v1.0
     title = data.get('title').strip()
     body = data.get('body').strip()
     source = data.get('source').strip()
@@ -69,22 +73,43 @@ def get_articles():
 
 @app.route('/articles/<int:id>', methods=['DELETE'])
 def delete_article(id):
-    article = Article.query.get(id)
-    if article is None:
-        return jsonify({"status": "error", "message": "Article not found"}), 404
-    db.session.delete(article)
-    db.session.commit()
-    return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
+    # article = Article.query.get(id)
+    # if article is None:
+    #     return jsonify({"status": "error", "message": "Article not found"}), 404
+    # db.session.delete(article)
+    # db.session.commit()
+    # return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
+    try:
+        article = Article.query.get(id)
+        if article is None:
+            return jsonify({"status": "error", "message": "Article not found"}), 404
+        db.session.delete(article)
+        db.session.commit()
+        return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
+    except Exception as e:
+        logger.error(f"Error deleting article: {e}")
+        return jsonify({"status": "error", "message": "Internal Server Error"}), 500
 
 @app.route('/articles/delete_n/<int:n>', methods=['DELETE'])
 def delete_first_n_articles(n):
-    articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
-    if not articles_to_delete:
-        return jsonify({"status": "error", "message": "No articles to delete"}), 404
-    for article in articles_to_delete:
-        db.session.delete(article)
-    db.session.commit()
-    return jsonify({"status": "success", "message": f"{n} articles deleted"})
+    # articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
+    # if not articles_to_delete:
+    #     return jsonify({"status": "error", "message": "No articles to delete"}), 404
+    # for article in articles_to_delete:
+    #     db.session.delete(article)
+    # db.session.commit()
+    # return jsonify({"status": "success", "message": f"{n} articles deleted"})
+    try:
+        articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
+        if not articles_to_delete:
+            return jsonify({"status": "error", "message": "No articles to delete"}), 404
+        for article in articles_to_delete:
+            db.session.delete(article)
+        db.session.commit()
+        return jsonify({"status": "success", "message": f"{n} articles deleted"})
+    except Exception as e:
+        logger.error(f"Error deleting first {n} articles: {e}")
+        return jsonify({"status": "error", "message": "Internal Server Error"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
