@@ -7,6 +7,7 @@ import logging
 import json
 # import dotenv
 from functools import wraps
+from scripts.metadata import extract_metadata
 
 # dotenv.load_dotenv()
 
@@ -51,8 +52,8 @@ with app.app_context():
 
 def sanitize_and_insert(data):
     # Sanitization v1.0
-    title = data.get('title').strip()
-    body = data.get('body').strip()
+    title = data.get('title').strip() if data.get('title') else None
+    body = data.get('body').strip() if data.get('body') else None
     source = data.get('source').strip()
     timestamp_str = data.get('timestamp').strip()
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
@@ -60,6 +61,13 @@ def sanitize_and_insert(data):
     sector = sectors_data[subsector] if subsector in sectors_data.keys() else ""
     tags = data.get('tags', []) 
     tickers = data.get('tickers', [])
+    
+    if not title or not body:
+        generated_title, generated_body = extract_metadata(source)
+        if not title:
+            title = generated_title
+        if not body:
+            body = generated_body
 
     new_article = Article(
         title=title,
