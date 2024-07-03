@@ -95,6 +95,16 @@ def add_article():
     result = sanitize_and_insert(input_data)
     return jsonify(result)
 
+@app.route('/articles/list', methods=['POST'])
+@require_api_key
+def add_articles():
+    input_data = request.get_json()
+    result_list = []
+    for data in input_data:
+        result = sanitize_and_insert(data)
+        result_list.append(result)
+    return jsonify(result_list)
+
 @app.route('/articles', methods=['GET'])
 def get_articles():
     articles = Article.query.all()
