@@ -14,11 +14,6 @@ def fetch(url):
   proxy = os.environ.get("PROXY_KEY")
 
   proxy_support = {'http': proxy,'https': proxy}
-  # opener = urllib.request.build_opener(proxy_support)
-  # urllib.request.install_opener(opener)
-
-  # with urllib.request.urlopen(url) as response:
-  #   data = response.read()
 
   try:
     response = requests.get(url, proxies=proxy_support, verify=False)
