@@ -77,6 +77,13 @@ def sanitize_and_insert(data):
             title = generated_title
         if not body:
             body = generated_body
+    
+    if title == '' or body == '':
+        generated_title, generated_body = extract_metadata(source)
+        if title == '':
+            title = generated_title
+        if body == '':
+            body = generated_body
 
     new_article = Article(
         title=title,
