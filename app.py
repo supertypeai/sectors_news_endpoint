@@ -8,6 +8,7 @@ import json
 # import dotenv
 from functools import wraps
 from scripts.metadata import extract_metadata
+from sqlalchemy.orm import Session, sessionmaker
 
 # dotenv.load_dotenv()
 
@@ -57,6 +58,7 @@ class LogEntry(db.Model):
     remote_addr = db.Column(db.String(50))
 
 with app.app_context():
+    SessionFactory = sessionmaker(bind=db.engine)
     db.create_all()
 
 def sanitize_and_insert(data):
@@ -154,28 +156,28 @@ def get_articles():
     } for article in articles]
     return jsonify(articles_list)
 
-@app.route('/articles/<int:id>', methods=['DELETE'])
+@app.route('/articles', methods=['DELETE'])
 @require_api_key
-def delete_article(id):
-    log_request_info(logging.INFO, f'Received DELETE request to /articles/{id}')
-    article = Article.query.get(id)
-    if article is None:
-        return jsonify({"status": "error", "message": "Article not found"}), 404
-    db.session.delete(article)
-    db.session.commit()
-    return jsonify({"status": "success", "message": f"Article with id {id} deleted"})
-
-@app.route('/articles/delete_n/<int:n>', methods=['DELETE'])
-@require_api_key
-def delete_first_n_articles(n):
-    log_request_info(logging.INFO, f'Received DELETE request to /articles/delete_n/{n}')
-    articles_to_delete = Article.query.order_by(Article.id).limit(n).all()
-    if not articles_to_delete:
-        return jsonify({"status": "error", "message": "No articles to delete"}), 404
-    for article in articles_to_delete:
-        db.session.delete(article)
-    db.session.commit()
-    return jsonify({"status": "success", "message": f"{n} articles deleted"})
+def delete_article():
+    input_data = request.get_json()
+    id_list = input_data.get('id_list')
+    log_request_info(logging.INFO, f'Received DELETE request to /articles')
+    session = SessionFactory()
+    list_result = []
+    for id in id_list:
+        article = session.get(Article, id)
+        if article is None:
+            list_result.append({"status": "error", "message": "Article not found"})
+        else:
+            try: 
+                list_result.append({"status": "success", "message": f"Article with id {id} deleted"})
+                session.delete(article)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                list_result.append({"status": "error", "message": f"article cannot be deleted {e}"})
+    session.close()            
+    return list_result
 
 @app.route('/logs', methods=['GET'])
 @require_api_key
