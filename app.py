@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 import logging
 import json
@@ -9,7 +9,9 @@ from functools import wraps
 from scripts.metadata import extract_metadata
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article
-import tempfile
+import pytz
+
+gmt_plus_7 = pytz.timezone('Asia/Bangkok')
 
 dotenv.load_dotenv()
 
@@ -84,7 +86,7 @@ def sanitize_and_insert(data):
 
 def log_request_info(level, message):
     log_entry = {
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(gmt_plus_7).isoformat(),
         'level': level,
         'message': message,
         'request_method': request.method,
@@ -95,6 +97,29 @@ def log_request_info(level, message):
         supabase.table('idx_news_logs').insert(log_entry).execute()
     except Exception as e:
         print("Failed to insert log")
+    
+    delete_outdated_logs()
+    
+def delete_outdated_logs():
+    logs = supabase.table('idx_news_logs').select('*').execute() 
+    print(logs)
+    if len(logs.data) > 100:
+        one_week_ago = datetime.now(gmt_plus_7) - timedelta(weeks=1)
+        print(datetime.now(gmt_plus_7), one_week_ago)
+        to_be_deleted = []
+        for log in logs.data:
+            log_timestamp = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00')).astimezone(gmt_plus_7)
+            if log_timestamp < one_week_ago:
+                to_be_deleted.append(log['id'])
+        
+        if to_be_deleted:
+            try:
+                for log_id in to_be_deleted:
+                    response = supabase.table('idx_news_logs').delete().eq('id', log_id).execute()
+                    print(f"Deleted log ID: {log_id}, {response}")
+            except Exception as e:
+                print(f"Failed to delete logs: {e}")
+
 
 @app.route('/articles', methods=['POST'])
 @require_api_key
@@ -151,6 +176,7 @@ def get_logs():
 @app.route('/pdf', methods=['POST'])
 @require_api_key
 def add_pdf_article():
+    log_request_info(logging.INFO, f'Received POST request to /pdf')
     if 'file' not in request.files:
         return jsonify({"status": "error", "message": "No file part"}), 400
     
@@ -184,8 +210,6 @@ def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(file_path)
     return file_path
-
-
 
 if __name__ == '__main__':
     app.run(debug=False)
