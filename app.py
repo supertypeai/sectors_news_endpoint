@@ -9,9 +9,7 @@ from functools import wraps
 from scripts.metadata import extract_metadata
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article
-import pytz
 
-gmt_plus_7 = pytz.timezone('Asia/Bangkok')
 
 dotenv.load_dotenv()
 
@@ -86,7 +84,7 @@ def sanitize_and_insert(data):
 
 def log_request_info(level, message):
     log_entry = {
-        'timestamp': datetime.now(gmt_plus_7).isoformat(),
+        'timestamp': datetime.now().isoformat(),
         'level': level,
         'message': message,
         'request_method': request.method,
@@ -103,11 +101,11 @@ def log_request_info(level, message):
 def delete_outdated_logs():
     logs = supabase.table('idx_news_logs').select('*').execute() 
     if len(logs.data) > 100:
-        one_week_ago = datetime.now(gmt_plus_7) - timedelta(weeks=1)
-        print(datetime.now(gmt_plus_7), one_week_ago)
+        one_week_ago = datetime.now(timezone.utc) - timedelta(weeks=1)
+        print(datetime.now(), one_week_ago)
         to_be_deleted = []
         for log in logs.data:
-            log_timestamp = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00')).astimezone(gmt_plus_7)
+            log_timestamp = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00')).astimezone(timezone.utc)
             if log_timestamp < one_week_ago:
                 to_be_deleted.append(log['id'])
         
@@ -167,7 +165,7 @@ def delete_article():
 @require_api_key
 def get_logs():
     try:
-        response = supabase.table('idx_news_logs').select('*').order('timestamp', desc=True).execute()
+        response = supabase.table('idx_news_logs').select('*').execute()
         return jsonify(response.data)
     except Exception as e:
         return jsonify({"status": "error", "message": e}), 500
