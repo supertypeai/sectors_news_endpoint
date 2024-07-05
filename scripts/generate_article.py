@@ -36,8 +36,9 @@ def extract_info(text):
       article_info["shareholding_before"] = line.split()[-1]
     elif "Jumlah Saham Setelah Transaksi" in line:
       article_info["shareholding_after"] = line.split()[-1]
-    elif "Tujuan Transaksi" in line:
-      article_info["purpose"] = line.split()[-1]
+    if "Tujuan Transaksi" in line:
+      word = get_first_word(line.split()[2]).lower()
+      article_info["purpose"] = word if word == 'investasi (penambahan aset)' or word == 'divestasi (pengurangan aset)' else 'lainnya'
     elif "Tanggal dan Waktu" in line or "Date and Time" in line:
       article_info["date_time"] = ' '.join(line.split()[3:])
   return article_info
@@ -65,3 +66,9 @@ def generate_article(pdf_url, sub_sector, data):
   article['timestamp'] = article_info['date_time'] + ":00"
 
   return article
+
+def get_first_word(s):
+    for i in range(1, len(s)):
+        if s[i].isupper():
+            return s[:i]
+    return s
