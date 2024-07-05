@@ -1,5 +1,6 @@
 beautifulsoup4==4.12.3
 Flask==3.0.3
+pdfplumber==0.11.1
 python-dotenv==1.0.1
 Requests==2.32.3
 supabase==2.5.1

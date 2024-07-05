@@ -7,6 +7,9 @@ import dotenv
 from supabase import create_client, Client
 from functools import wraps
 from scripts.metadata import extract_metadata
+from scripts.pdf_reader import extract_from_pdf
+from scripts.generate_article import generate_article
+import tempfile
 
 dotenv.load_dotenv()
 
@@ -27,6 +30,8 @@ def require_api_key(f):
     return decorated_function
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16 MB
+app.config['UPLOAD_FOLDER'] = '/tmp'
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -115,9 +120,9 @@ def get_articles():
     log_request_info(logging.INFO, 'Received GET request to /articles')
     try:
         response = supabase.table('idx_news').select('*').execute()
-        return jsonify(response.data)
+        return jsonify(response.data), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": {e.message}})
+        return jsonify({"status": "error", "message": {e.message}}), 500
 
 @app.route('/articles', methods=['DELETE'])
 @require_api_key
@@ -132,7 +137,7 @@ def delete_article():
             list_result.append({"status": "success", "message": f"Article with id {id} deleted"})
         except Exception as e:
             list_result.append({"status": "error", "message": f"Error deleting article with id {id}: {e}"})
-    return jsonify(list_result)         
+    return jsonify(list_result)     
 
 @app.route('/logs', methods=['GET'])
 @require_api_key
@@ -142,6 +147,45 @@ def get_logs():
         return jsonify(response.data)
     except Exception as e:
         return jsonify({"status": "error", "message": e}), 500
+    
+@app.route('/pdf', methods=['POST'])
+@require_api_key
+def add_pdf_article():
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "No file part"}), 400
+    
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "No selected file"}), 400
+    
+    data_body = request.form.get('data', '{}')
+    try:
+        data_body = json.loads(data_body)
+    except json.JSONDecodeError:
+        return jsonify({"status": "error", "message": "Invalid JSON data"}), 400
+    
+    if file and file.filename.lower().endswith('.pdf'):
+        file_path = save_file(file)
+        text = extract_from_pdf(file_path)
+        text = generate_article(data_body['source'], data_body['sub_sector'], text)
+        os.remove(file_path)
+        
+        try:
+            response = supabase.table('idx_news').insert(text).execute()
+        except Exception as e:
+            return {"status": "error", "message": f"Insert failed! Exception: {e}"}
+
+        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0]['id'], "additional_data": data_body}), 200
+    else:
+        return jsonify({"status": "error", "message": "Invalid file type"}), 400
+
+def save_file(file):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
+    return file_path
+
+
 
 if __name__ == '__main__':
     app.run(debug=False)
