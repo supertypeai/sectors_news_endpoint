@@ -102,7 +102,6 @@ def log_request_info(level, message):
     
 def delete_outdated_logs():
     logs = supabase.table('idx_news_logs').select('*').execute() 
-    print(logs)
     if len(logs.data) > 100:
         one_week_ago = datetime.now(gmt_plus_7) - timedelta(weeks=1)
         print(datetime.now(gmt_plus_7), one_week_ago)
