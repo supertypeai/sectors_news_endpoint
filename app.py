@@ -184,16 +184,13 @@ def add_pdf_article():
     if file.filename == '':
         return jsonify({"status": "error", "message": "No selected file"}), 400
     
-    data_body = request.form.get('data', '{}')
-    try:
-        data_body = json.loads(data_body)
-    except json.JSONDecodeError:
-        return jsonify({"status": "error", "message": "Invalid JSON data"}), 400
+    source = request.form.get('source', '')
+    sub_sector = request.form.get('sub_sector', '')
     
     if file and file.filename.lower().endswith('.pdf'):
         file_path = save_file(file)
         text = extract_from_pdf(file_path)
-        text = generate_article(data_body['source'], data_body['sub_sector'], text)
+        text = generate_article(source, sub_sector, text)
         os.remove(file_path)
         
         try:
@@ -201,7 +198,7 @@ def add_pdf_article():
         except Exception as e:
             return {"status": "error", "message": f"Insert failed! Exception: {e}"}
 
-        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0], "additional_data": data_body}), 200
+        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0], "source": source, "sub_sector": sub_sector}), 200
     else:
         return jsonify({"status": "error", "message": "Invalid file type"}), 400
 
