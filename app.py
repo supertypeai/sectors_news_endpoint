@@ -176,7 +176,7 @@ def add_pdf_article():
         except Exception as e:
             return {"status": "error", "message": f"Insert failed! Exception: {e}"}
 
-        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0]['id'], "additional_data": data_body}), 200
+        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0], "additional_data": data_body}), 200
     else:
         return jsonify({"status": "error", "message": "Invalid file type"}), 400
 
