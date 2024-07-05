@@ -182,8 +182,8 @@ def add_pdf_article():
     if file.filename == '':
         return jsonify({"status": "error", "message": "No selected file"}), 400
     
-    source = request.form.get('source', '')
-    sub_sector = request.form.get('sub_sector', '')
+    source = request.form['source'] if 'source' in request.form else ''
+    sub_sector = request.form['sub_sector'] if 'sub_sector' in request.form else request.form['subsector'] if 'subsector' in request.form else ''
     
     if file and file.filename.lower().endswith('.pdf'):
         file_path = save_file(file)
