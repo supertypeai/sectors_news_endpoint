@@ -140,11 +140,24 @@ def add_articles():
 @app.route('/articles', methods=['GET'])
 def get_articles():
     log_request_info(logging.INFO, 'Received GET request to /articles')
+
+    subsector = request.args.get('subsector')
+    if not subsector:
+        request.args.get('sub_sector')        
     try:
-        response = supabase.table('idx_news').select('*').execute()
+        query = supabase.table('idx_news').select('*')
+        if subsector:
+            query = query.eq('sub_sector', subsector)
+        
+        response = query.execute()
         return jsonify(response.data), 200
     except Exception as e:
         return jsonify({"status": "error", "message": {e.message}}), 500
+
+@app.route('/articles/')
+def get_subsector_articles():
+    log_request_info(logging.INFO, 'Received GET request to /articles')
+
 
 @app.route('/articles', methods=['DELETE'])
 @require_api_key
