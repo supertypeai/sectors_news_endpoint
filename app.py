@@ -14,7 +14,8 @@ from scripts.generate_article import generate_article
 dotenv.load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
-supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), SUPABASE_KEY)
 
 def require_api_key(f):
     @wraps(f)
@@ -73,6 +74,37 @@ def sanitize_and_insert(data):
         'sub_sector': sub_sector,
         'tags': tags,
         'tickers': tickers
+    }
+
+    try:
+        response = supabase.table('idx_news').insert(new_article).execute()
+        return {"status": "success", "id": response.data[0]['id']}
+    except Exception as e:
+        return {"status": "error", "message": f"Insert failed! Exception: {e}"}
+
+def insert_insider_trading(data):
+    document_number = data.get('document_number').strip() if data.get('nomor_surat') else None
+    company_name = data.get('company_name').strip()
+    shareholder_name = data.get('shareholder_name').strip()
+    source = data.get('source').strip()
+    ticker = data.get('ticker').strip()
+    category = data.get('category').strip()
+    control_status = data.get('control_status').strip()
+    holding_before = data.get('holding_before').strip()
+    holding_after = data.get('holding_after').strip()
+    sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
+    purpose = data.get('purpose').strip()
+    date_time = datetime.strptime(data.get('date_time'), '%Y-%m-%d %H:%M:%S')
+
+    new_article = {
+        'title': f"Informasi insider trading {shareholder_name} dalam {company_name}",
+        'body': f"{document_number} - {date_time} - Kategori {category} - {shareholder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after} dengan tujuan {purpose}",
+        'source': source,
+        'timestamp': str(date_time),
+        'sector': sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
+        'sub_sector': sub_sector,
+        'tags': ['insider-trading'],
+        'tickers': [ticker]
     }
 
     try:
@@ -154,10 +186,6 @@ def get_articles():
     except Exception as e:
         return jsonify({"status": "error", "message": {e.message}}), 500
 
-@app.route('/articles/')
-def get_subsector_articles():
-    log_request_info(logging.INFO, 'Received GET request to /articles')
-
 
 @app.route('/articles', methods=['DELETE'])
 @require_api_key
@@ -212,6 +240,15 @@ def add_pdf_article():
         return jsonify({"status": "success", "filename": file.filename, "response": response.data[0], "source": source, "sub_sector": sub_sector}), 200
     else:
         return jsonify({"status": "error", "message": "Invalid file type"}), 400
+
+@app.route('/insider-trading', methods=['POST'])
+@require_api_key
+def add_insider_trading():
+    log_request_info(logging.INFO, f'Received POST request to /insider-trading')
+    input_data = request.get_json()
+    result = insert_insider_trading(input_data)
+    return jsonify(result)
+
 
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
