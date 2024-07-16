@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
@@ -41,7 +42,13 @@ def extract_info(text):
       article_info["purpose"] = word if word == 'investasi' or word == 'divestasi' else 'lainnya'
       article_info["purpose"] += " (penambahan aset)" if word == 'investasi' else " (pengurangan aset)" if word == 'divestasi' else ""
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
-      article_info["date_time"] = ' '.join(line.split()[3:])
+      date_time_str = ' '.join(line.split()[3:])
+      try:
+        parsed_date = datetime.strptime(date_time_str, "%Y %d %m")
+        formatted_date = parsed_date.strftime("%Y-%m-%d")
+        article_info["date_time"] = formatted_date
+      except ValueError:
+        article_info["date_time"] = date_time_str
   return article_info
 
 def generate_article(pdf_url, sub_sector, data):
