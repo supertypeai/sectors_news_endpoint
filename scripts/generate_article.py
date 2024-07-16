@@ -39,7 +39,7 @@ def extract_info(text):
     if "Tujuan Transaksi" in line:
       word = get_first_word(line.split()[2]).lower()
       article_info["purpose"] = word if word == 'investasi' or word == 'divestasi' else 'lainnya'
-      article_info["purpose"] += "(penambahan aset)" if word == 'investasi' else "(pengurangan aset)" if word == 'divestasi' else ""
+      article_info["purpose"] += " (penambahan aset)" if word == 'investasi' else " (pengurangan aset)" if word == 'divestasi' else ""
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
       article_info["date_time"] = ' '.join(line.split()[3:])
   return article_info
