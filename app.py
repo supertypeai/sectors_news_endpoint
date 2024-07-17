@@ -95,7 +95,7 @@ def insert_insider_trading(data):
     sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
     purpose = data.get('purpose').strip()
     date_time = datetime.strptime(data.get('date_time'), '%Y-%m-%d %H:%M:%S')
-    transaction_type = data.get('type').strip()
+    transaction_type = data.get('type')
     transaction_type.append('buy' if holding_before < holding_after else 'sell')
     amount_transaction = abs(holding_before - holding_after)
 
@@ -108,7 +108,7 @@ def insert_insider_trading(data):
         'sub_sector': sub_sector,
         'tags': ['insider-trading'],
         'tickers': [ticker],
-        "transaction_type": [transaction_type],
+        "transaction_type": transaction_type,
         "holding_before": holding_before,
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
