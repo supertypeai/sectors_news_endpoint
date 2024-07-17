@@ -39,7 +39,7 @@ def extract_info(text):
       article_info["shareholding_after"] = line.split()[-1]
     if "Tujuan Transaksi" in line:
       word = get_first_word(line.split()[2]).lower()
-      article_info["purpose"] = word if word == 'investasi' or word == 'divestasi' else 'lainnya'
+      article_info["purpose"] = word if word == 'investasi' or word == 'divestasi' else ''
       article_info["purpose"] += " (penambahan aset)" if word == 'investasi' else " (pengurangan aset)" if word == 'divestasi' else ""
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
       date_time_str = ' '.join(line.split()[3:])
@@ -51,7 +51,7 @@ def extract_info(text):
         article_info["date_time"] = date_time_str
   return article_info
 
-def generate_article(pdf_url, sub_sector, data):
+def generate_article(pdf_url, sub_sector, type, data):
   # Handle for POST pdf
   article = {
     "title": "",
@@ -61,7 +61,11 @@ def generate_article(pdf_url, sub_sector, data):
     "sub_sector": sub_sector,
     "sector": sectors_data[sub_sector],
     "tags": ["insider-trading"],
-    "tickers": []
+    "tickers": [],
+    "transaction_type": [type],
+    "holding_before": 0,
+    "holding_after": 0,
+    "amount_transaction": 0,
   }
 
   pdf_text = data
@@ -69,9 +73,13 @@ def generate_article(pdf_url, sub_sector, data):
   article_info = extract_info(pdf_text)
 
   article['title'] = f"Informasi insider trading {article_info['shareholder_name']} dalam {article_info['company_name']}"
-  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']} dengan tujuan {article_info['purpose']}"
+  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
   article['tickers'] = [article_info['ticker']]
   article['timestamp'] = article_info['date_time'] + ":00"
+  article['transaction_type'].append('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
+  article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
+  article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
+  article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
 
   return article
 

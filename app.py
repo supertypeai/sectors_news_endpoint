@@ -91,24 +91,32 @@ def insert_insider_trading(data):
     category = data.get('category').strip()
     control_status = data.get('control_status').strip()
     holding_before = data.get('holding_before').strip()
+    holding_before = int("".join(holding_before.split(".")))
     holding_after = data.get('holding_after').strip()
+    holding_after = int("".join(holding_after.split(".")))
     sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
     purpose = data.get('purpose').strip()
     date_time = datetime.strptime(data.get('date_time'), '%Y-%m-%d %H:%M:%S')
+    transaction_type = [data.get('type').strip()]
+    amount_transaction = abs(holding_before - holding_after)
 
     new_article = {
         'title': f"Informasi insider trading {shareholder_name} dalam {company_name}",
-        'body': f"{document_number} - {date_time} - Kategori {category} - {shareholder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after} dengan tujuan {purpose}",
+        'body': f"{document_number} - {date_time} - Kategori {category} - {shareholder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
         'source': source,
         'timestamp': str(date_time),
         'sector': sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
         'sub_sector': sub_sector,
         'tags': ['insider-trading'],
-        'tickers': [ticker]
+        'tickers': [ticker],
+        "transaction_type": [transaction_type],
+        "holding_before": holding_before,
+        "holding_after": holding_after,
+        "amount_transaction": amount_transaction,
     }
 
     try:
-        response = supabase.table('idx_news').insert(new_article).execute()
+        response = supabase.table('idx_filings').insert(new_article).execute()
         return {"status": "success", "id": response.data[0]['id']}
     except Exception as e:
         return {"status": "error", "message": f"Insert failed! Exception: {e}"}
@@ -225,15 +233,18 @@ def add_pdf_article():
     
     source = request.form['source'] if 'source' in request.form else ''
     sub_sector = request.form['sub_sector'] if 'sub_sector' in request.form else request.form['subsector'] if 'subsector' in request.form else ''
+    # Either Insider or Institution
+    type = request.form['type'] if 'type' in request.form else ''
+    type = type if type.lower() == 'insider' or type.lower() == 'insitution' else ''
     
     if file and file.filename.lower().endswith('.pdf'):
         file_path = save_file(file)
         text = extract_from_pdf(file_path)
-        text = generate_article(source, sub_sector, text)
+        text = generate_article(source, sub_sector, type, text)
         os.remove(file_path)
         
         try:
-            response = supabase.table('idx_news').insert(text).execute()
+            response = supabase.table('idx_filings').insert(text).execute()
         except Exception as e:
             return {"status": "error", "message": f"Insert failed! Exception: {e}"}
 
