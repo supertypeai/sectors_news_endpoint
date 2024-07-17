@@ -90,14 +90,15 @@ def insert_insider_trading(data):
     ticker = data.get('ticker').strip()
     category = data.get('category').strip()
     control_status = data.get('control_status').strip()
-    holding_before = data.get('holding_before').strip()
+    holding_before = data.get('holding_before')
     holding_before = int("".join(holding_before.split(".")))
-    holding_after = data.get('holding_after').strip()
+    holding_after = data.get('holding_after')
     holding_after = int("".join(holding_after.split(".")))
     sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
     purpose = data.get('purpose').strip()
     date_time = datetime.strptime(data.get('date_time'), '%Y-%m-%d %H:%M:%S')
-    transaction_type = [data.get('type').strip()]
+    transaction_type = data.get('type').strip()
+    transaction_type.append('buy' if holding_before < holding_after else 'sell')
     amount_transaction = abs(holding_before - holding_after)
 
     new_article = {
