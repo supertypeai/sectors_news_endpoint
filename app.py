@@ -258,7 +258,7 @@ def add_insider_trading():
     log_request_info(logging.INFO, f'Received POST request to /insider-trading')
     input_data = request.get_json()
     result = insert_insider_trading(input_data)
-    return jsonify(result)
+    return jsonify(result), (200 if result.status == "success" else 400)
 
 @app.route('/insider-trading', methods=['GET'])
 @require_api_key
