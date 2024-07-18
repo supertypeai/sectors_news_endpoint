@@ -95,8 +95,8 @@ def insert_insider_trading(data):
     sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
     purpose = data.get('purpose').strip()
     date_time = datetime.strptime(data.get('date_time'), '%Y-%m-%d %H:%M:%S')
-    transaction_type = data.get('type')
-    transaction_type.append('buy' if holding_before < holding_after else 'sell')
+    holder_type = data.get('holder_type')
+    transaction_type = ('buy' if holding_before < holding_after else 'sell')
     amount_transaction = abs(holding_before - holding_after)
 
     new_article = {
@@ -109,6 +109,7 @@ def insert_insider_trading(data):
         'tags': ['insider-trading'],
         'tickers': [ticker],
         "transaction_type": transaction_type,
+        "holder_type": holder_type,
         "holding_before": holding_before,
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
@@ -233,7 +234,7 @@ def add_pdf_article():
     source = request.form['source'] if 'source' in request.form else ''
     sub_sector = request.form['sub_sector'] if 'sub_sector' in request.form else request.form['subsector'] if 'subsector' in request.form else ''
     # Either Insider or Institution
-    type = request.form['type'] if 'type' in request.form else ''
+    type = request.form['holder_type'] if 'holder_type' in request.form else ''
     type = type if type.lower() == 'insider' or type.lower() == 'insitution' else ''
     
     if file and file.filename.lower().endswith('.pdf'):

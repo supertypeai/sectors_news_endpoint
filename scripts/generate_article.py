@@ -51,7 +51,7 @@ def extract_info(text):
         article_info["date_time"] = date_time_str
   return article_info
 
-def generate_article(pdf_url, sub_sector, type, data):
+def generate_article(pdf_url, sub_sector, holder_type, data):
   # Handle for POST pdf
   article = {
     "title": "",
@@ -62,7 +62,8 @@ def generate_article(pdf_url, sub_sector, type, data):
     "sector": sectors_data[sub_sector],
     "tags": ["insider-trading"],
     "tickers": [],
-    "transaction_type": [type],
+    "transaction_type": '',
+    "holder_type": holder_type,
     "holding_before": 0,
     "holding_after": 0,
     "amount_transaction": 0,
@@ -76,7 +77,7 @@ def generate_article(pdf_url, sub_sector, type, data):
   article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
   article['tickers'] = [article_info['ticker']]
   article['timestamp'] = article_info['date_time'] + ":00"
-  article['transaction_type'].append('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
+  article['transaction_type'] = ('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
