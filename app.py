@@ -260,6 +260,30 @@ def add_insider_trading():
     result = insert_insider_trading(input_data)
     return jsonify(result)
 
+@app.route('/insider-trading', methods=['GET'])
+@require_api_key
+def get_insider_trading():
+    log_request_info(logging.INFO, f'Received GET request to /insider-trading')
+    try:
+        response = supabase.table('idx_filings').select('*').execute()
+        return response.data
+    except Exception as e:
+        return jsonify({"status": "error", "message": e}), 500
+    
+@app.route('/insider-trading', methods=['DELETE'])
+@require_api_key
+def delete_insider_trading():
+    log_request_info(logging.INFO, f'Received DELETE request to /insider-trading')
+    input_data = request.get_json()
+    id_list = input_data.get('id_list')
+    list_result = []
+    for id in id_list:
+        try:
+            supabase.table('idx_filings').delete().eq('id', id).execute()
+            list_result.append({"status": "success", "message": f"Filing with id {id} deleted"})
+        except Exception as e:
+            list_result.append({"status": "error", "message": f"Error deleting filing with id {id}: {e}"})
+    return jsonify(list_result)
 
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
