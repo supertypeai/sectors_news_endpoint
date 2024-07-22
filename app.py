@@ -39,12 +39,36 @@ logger = logging.getLogger(__name__)
 with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
 
-def sanitize_and_insert(data):
+def sanitize_insert(data):
+    new_article = sanitize_article(data)
+
+    try:
+        response = supabase.table('idx_news').insert(new_article).execute()
+        return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
+    except Exception as e:
+        return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
+
+def sanitize_update(data):
+    new_article = sanitize_article(data)
+    record_id = data.get('id')
+
+    if not record_id:
+        return jsonify({"error": "Record ID is required", "status_code": 400})
+    
+    try:
+        response = supabase.table('idx_news').update(new_article).eq('id', record_id).execute()
+        
+        return {"message": "Record updated successfully from table idx_news", "data": response.data, "status_code": 200}
+    except Exception as e:
+        return {"error": str(e), "status_code": 500}
+
+def sanitize_article(data):
     # Sanitization v1.0
     title = data.get('title').strip() if data.get('title') else None
     body = data.get('body').strip() if data.get('body') else None
     source = data.get('source').strip()
     timestamp_str = data.get('timestamp').strip()
+    timestamp_str = timestamp_str.replace('T', ' ')
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
@@ -75,14 +99,10 @@ def sanitize_and_insert(data):
         'tags': tags,
         'tickers': tickers
     }
+    
+    return new_article
 
-    try:
-        response = supabase.table('idx_news').insert(new_article).execute()
-        return {"status": "success", "id": response.data[0]['id']}
-    except Exception as e:
-        return {"status": "error", "message": f"Insert failed! Exception: {e}"}
-
-def insert_insider_trading(data):
+def sanitize_filing(data):
     document_number = data.get('document_number').strip() if data.get('nomor_surat') else None
     company_name = data.get('company_name').strip()
     shareholder_name = data.get('shareholder_name').strip()
@@ -114,13 +134,64 @@ def insert_insider_trading(data):
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
     }
+    return new_article
 
+def sanitize_filing_article(data):
+    title = data.get('title').strip() if data.get('title') else None
+    body = data.get('body').strip() if data.get('body') else None
+    source = data.get('source').strip()
+    timestamp_str = data.get('timestamp').strip()
+    timestamp_str = timestamp_str.replace('T', ' ')
+    timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+    sub_sector = data.get('sub_sector').strip() if data.get('sub_sector') else data.get('subsector').strip()
+    sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
+    tags = data.get('tags', []) 
+    tickers = data.get('tickers', [])
+    holding_before = data.get('holding_before')
+    holding_after = data.get('holding_after')
+    holder_type = data.get('holder_type')
+    transaction_type = ('buy' if holding_before < holding_after else 'sell')
+    amount_transaction = abs(holding_before - holding_after)
+
+    new_article = {
+        'title': title,
+        'body': body,
+        'source': source,
+        'timestamp': timestamp.isoformat(),
+        'sector': sector,
+        'sub_sector': sub_sector,
+        'tags': tags,
+        'tickers': tickers,
+        "transaction_type": transaction_type,
+        "holder_type": holder_type,
+        "holding_before": holding_before,
+        "holding_after": holding_after,
+        "amount_transaction": amount_transaction,
+    }
+
+    return new_article
+
+def insert_insider_trading_supabase(data):
+    new_article = sanitize_filing(data)
+    
     try:
         response = supabase.table('idx_filings').insert(new_article).execute()
-        return {"status": "success", "id": response.data[0]['id']}
+        return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
     except Exception as e:
-        return {"status": "error", "message": f"Insert failed! Exception: {e}"}
+        return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
+    
+def update_insider_trading_supabase(data):
+    new_article = sanitize_filing_article(data)
+    record_id = data.get('id')
 
+    if not record_id:
+        return jsonify({"error": "Record ID is required", "status_code": 400})
+    try:
+        response = supabase.table('idx_filings').update(new_article).eq('id', record_id).execute()
+        
+        return {"message": "Record updated successfully from table ifx_filings", "data": response.data, "status_code": 200}
+    except Exception as e:
+        return {"error": str(e), "status_code": 500}
 
 def log_request_info(level, message):
     log_entry = {
@@ -163,8 +234,8 @@ def delete_outdated_logs():
 def add_article():
     log_request_info(logging.INFO, 'Received POST request to /articles')
     input_data = request.get_json()
-    result = sanitize_and_insert(input_data)
-    return jsonify(result)
+    result = sanitize_insert(input_data)
+    return jsonify(result), result.get('status_code')
 
 @app.route('/articles/list', methods=['POST'])
 @require_api_key
@@ -173,7 +244,7 @@ def add_articles():
     input_data = request.get_json()
     result_list = []
     for data in input_data:
-        result = sanitize_and_insert(data)
+        result = sanitize_insert(data)
         result_list.append(result)
     return jsonify(result_list)
 
@@ -209,6 +280,14 @@ def delete_article():
         except Exception as e:
             list_result.append({"status": "error", "message": f"Error deleting article with id {id}: {e}"})
     return jsonify(list_result)     
+
+@app.route('/articles', methods=['PATCH'])
+@require_api_key
+def update_article():
+    log_request_info(logging.INFO, 'Received PATCH request to /articles')
+    input_data = request.get_json()
+    result = sanitize_update(input_data)
+    return jsonify(result), result.get('status_code')
 
 @app.route('/logs', methods=['GET'])
 @require_api_key
@@ -257,8 +336,8 @@ def add_pdf_article():
 def add_insider_trading():
     log_request_info(logging.INFO, f'Received POST request to /insider-trading')
     input_data = request.get_json()
-    result = insert_insider_trading(input_data)
-    return jsonify(result), (200 if result.status == "success" else 400)
+    result = insert_insider_trading_supabase(input_data)
+    return jsonify(result), result.get('status_code')
 
 @app.route('/insider-trading', methods=['GET'])
 @require_api_key
@@ -284,6 +363,14 @@ def delete_insider_trading():
         except Exception as e:
             list_result.append({"status": "error", "message": f"Error deleting filing with id {id}: {e}"})
     return jsonify(list_result)
+
+@app.route('/insider-trading', methods=['PATCH'])
+@require_api_key
+def update_insider_trading():
+    log_request_info(logging.INFO, f'Received PATCH request to /insider-trading')
+    input_data = request.get_json()
+    result = update_insider_trading_supabase(input_data)
+    return jsonify(result), result.get('status_code')
 
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
