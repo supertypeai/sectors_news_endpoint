@@ -1,0 +1,62 @@
+from openai import OpenAI
+import os
+import dotenv
+import re
+from nltk.tokenize import sent_tokenize, word_tokenize
+import tiktoken
+import json
+
+dotenv.load_dotenv()
+
+# Model Creation
+client = OpenAI(
+  api_key=os.getenv('OPENAI_API_KEY'),  
+)
+
+def count_tokens(text):
+    enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    tokens = enc.encode(text)
+    return len(tokens)
+
+def summarize_ai(filings_text, category):
+    prompt = {
+        "body": ("Please analyze and summarize the following filing transaction into one paragraph with maximum 150 tokens, focusing on the key details such as the entities involved, the type of transaction, "
+        "the change in ownership, the purpose of the transaction, and any potential implications or significance of this transaction:\n\n"
+        f"\"{filings_text}\"\n\n"
+        "Summary and Analysis:"),
+        "title": ("Provide a one sentence title for the transaction filing. Use this structure: (Holder type) (Transaction type) Transaction of (Company in transaction) (if any, include who the buyer/seller is)."
+        f"\"{filings_text}\"\n\n"
+        "Title is (without quotation marks)")
+        }
+
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that that summarizes and analyzes transaction filings to be displayed for stock traders."},
+            {"role": "user", "content": prompt[category]}
+        ],
+        max_tokens=150
+    )
+    return response.choices[0].message.content
+
+def summarize_filing(data):
+    news_text = {
+            "amount_transaction": data['amount_transaction'],
+            "holder_type": data['holder_type'],
+            "holding_after": data['holding_after'],
+            "holding_before": data['holding_before'],
+            "sector": data['sector'],
+            "sub_sector": data['sub_sector'],
+            "timestamp": data['timestamp'],
+            "title": data['title'],
+            "transaction_type": data['transaction_type']
+        }
+
+    news_text = json.dumps(news_text, indent = 2)
+
+    # print(news_text, count_tokens(news_text))
+    summary = summarize_ai(news_text, "body")
+    # print(summary)
+    title = summarize_ai(news_text, "title")
+
+    return title, summary

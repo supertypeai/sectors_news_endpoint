@@ -9,7 +9,8 @@ from functools import wraps
 from scripts.metadata import extract_metadata
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article
-
+from scripts.summary_filings import summarize_filing
+from scripts.summary_news import summarize_news
 
 dotenv.load_dotenv()
 
@@ -74,6 +75,18 @@ def sanitize_article(data):
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
     tags = data.get('tags', []) 
     tickers = data.get('tickers', [])
+
+    for i, ticker in enumerate(tickers):
+        split = ticker.split(".")
+        if len(split) > 1:
+            if split[1].upper() == "JK":
+                pass
+            else:
+                split[1] = ".JK"
+                tickers[i] = split[0] + split[1]
+        else:
+            tickers[i] += ".JK"
+        tickers[i] = tickers[i].upper()
     
     if not title or not body:
         generated_title, generated_body = extract_metadata(source)
@@ -99,6 +112,14 @@ def sanitize_article(data):
         'tags': tags,
         'tickers': tickers
     }
+
+    new_title, new_body = summarize_news(new_article['source'])
+
+    if len(new_body) > 0:
+        new_article['body'] = new_body
+    
+    if len(new_title) > 0:
+        new_article['title'] = new_title
     
     return new_article
 
@@ -119,6 +140,17 @@ def sanitize_filing(data):
     transaction_type = ('buy' if holding_before < holding_after else 'sell')
     amount_transaction = abs(holding_before - holding_after)
 
+    ticker_list = ticker.split(".")
+    if (len(ticker_list) > 1):
+        if (ticker_list[1].upper() == "JK"):
+            pass
+        else:
+            ticker_list[1] = ".JK"
+            ticker = ticker_list[0] + ticker_list[1]
+    else:
+        ticker += ".JK"
+    ticker = ticker.upper()
+
     new_article = {
         'title': f"Informasi insider trading {shareholder_name} dalam {company_name}",
         'body': f"{document_number} - {date_time} - Kategori {category} - {shareholder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
@@ -134,6 +166,14 @@ def sanitize_filing(data):
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
     }
+    new_title, new_body = summarize_filing(new_article)
+
+    if len(new_body) > 0:
+        new_article['body'] = new_body
+    
+    if len(new_title) > 0:
+        new_article['title'] = new_title
+
     return new_article
 
 def sanitize_filing_article(data):
@@ -168,6 +208,14 @@ def sanitize_filing_article(data):
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
     }
+
+    new_title, new_body = summarize_filing(new_article)
+
+    if len(new_body) > 0:
+        new_article['body'] = new_body
+    
+    if len(new_title) > 0:
+        new_article['title'] = new_title
 
     return new_article
 

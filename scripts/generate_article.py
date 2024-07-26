@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+from scripts.summary_filings import summarize_filing
+
 with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
 
@@ -75,13 +77,22 @@ def generate_article(pdf_url, sub_sector, holder_type, data):
 
   article['title'] = f"Informasi insider trading {article_info['shareholder_name']} dalam {article_info['company_name']}"
   article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
-  article['tickers'] = [article_info['ticker']]
+  article['tickers'] = [article_info['ticker'].upper() + ".JK"]
   article['timestamp'] = article_info['date_time'] + ":00"
   article['transaction_type'] = ('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
 
+
+  new_title, new_body = summarize_filing(article)
+
+  if len(new_body) > 0:
+      article['body'] = new_body
+  
+  if len(new_title) > 0:
+      article['title'] = new_title
+    
   return article
 
 def get_first_word(s):
