@@ -69,6 +69,7 @@ def generate_article(pdf_url, sub_sector, holder_type, data):
     "holding_before": 0,
     "holding_after": 0,
     "amount_transaction": 0,
+    "holder_name": ""
   }
 
   pdf_text = data
@@ -83,6 +84,7 @@ def generate_article(pdf_url, sub_sector, holder_type, data):
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
+  article['holder_name'] = article_info['shareholder_name']
 
 
   new_title, new_body = summarize_filing(article)
