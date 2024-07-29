@@ -25,7 +25,7 @@ def count_tokens(text):
 def summarize_ai(news_text, category):
     prompt = {
         "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Do not start with 'summary:' or 'in summary' etc.",
-        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article"}
+        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"}
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -73,16 +73,24 @@ def get_article_body(url):
         return ""
 
 def summarize_news(url):
-
     news_text = get_article_body(url)
     if len(news_text) > 0:
         news_text = preprocess_text(news_text)
         summary = summarize_ai(news_text, "body")
-        print(summary)
         title = summarize_ai(news_text, "title")
-        print(title)
 
         return title, summary
     else:
         return "", ""
     
+# urls = [
+#     "https://www.idnfinancials.com/news/50366/boosting-growth-tpma-acquires-worth-us",
+#     "https://www.idnfinancials.com/news/50438/consistent-profit-dividend-ptba-rakes-indeks-categories",
+#     "https://www.idnfinancials.com/news/50433/smdr-listed-dividend-category-indeks-tempo-idnfinancials",
+#     "https://www.idnfinancials.com/news/50431/declining-market-cap-sido-listed-categories-indeks"
+# ]
+
+# for url in urls:
+#     title, body = summarize_news(url)
+#     print(title)
+#     print(body)
