@@ -65,7 +65,10 @@ def preprocess_text(news_text):
 
 def get_article_body(url):
     try:
-        g = Goose()
+        proxy = os.environ.get("PROXY_KEY")
+
+        proxy_support = {'http': proxy,'https': proxy}
+        g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
         article = g.extract(url=url)
         return article.cleaned_text
     except Exception as e:
