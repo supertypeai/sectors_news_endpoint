@@ -5,7 +5,10 @@ import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 import tiktoken
+import warnings
 from newspaper import Article
+
+warnings.filterwarnings("ignore", category=SyntaxWarning, module='newspaper.urls')
 
 # NLTK download
 nltk.download('punkt')
