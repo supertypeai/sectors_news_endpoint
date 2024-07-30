@@ -5,13 +5,12 @@ import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 import tiktoken
-import warnings
 from newspaper import Article
-
-warnings.filterwarnings("ignore", category=SyntaxWarning, module='newspaper.urls')
+from goose3 import Goose
 
 # NLTK download
-nltk.download('punkt')
+# nltk.download('punkt')
+nltk.data.path.append('./nltk_data')
 
 dotenv.load_dotenv()
 
@@ -67,12 +66,11 @@ def preprocess_text(news_text):
 
 def get_article_body(url):
     try:
-        article = Article(url)
-        article.download()
-        article.parse()
-        return article.text
+        g = Goose()
+        article = g.extract(url=url)
+        return article.cleaned_text
     except Exception as e:
-        print(f"Newspaper3k failed with error: {e}")
+        print(f"Goose3 failed with error: {e}")
         return ""
 
 def summarize_news(url):
