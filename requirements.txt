@@ -1,6 +1,10 @@
 beautifulsoup4==4.12.3
 Flask==3.0.3
+newspaper3k==0.2.8
+nltk==3.8.1
+openai==1.37.1
 pdfplumber==0.11.1
 python-dotenv==1.0.1
 Requests==2.32.3
-supabase==2.5.1
+supabase==2.6.0
+tiktoken==0.7.0
