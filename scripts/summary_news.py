@@ -5,7 +5,6 @@ import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 import tiktoken
-from newspaper import Article
 from goose3 import Goose
 
 # NLTK download
