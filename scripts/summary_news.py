@@ -26,7 +26,8 @@ def count_tokens(text):
 def summarize_ai(news_text, category):
     prompt = {
         "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Do not start with 'summary:' or 'in summary' etc.",
-        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"}
+        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
+    }
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
