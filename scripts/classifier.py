@@ -125,7 +125,8 @@ def classify_ai(body, category):
   prompt = {
     "tags": f"Tags: {','.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, in the format: [tag1, tag2, etc].",
     "tickers": f"Tickers: {','.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, in the format [ticker1, ticker2, etc].",
-    "subsectors": f"subsectors: {','.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, in the format of subsector-name."
+    "subsectors": f"subsectors: {','.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, in the format of subsector-name.",
+    "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. \n Answer in one word (bullish or bearish)"
   }
 
   response = client.chat.completions.create(
@@ -245,6 +246,12 @@ def get_subsector_chat(text):
   return classify_ai(text, "subsectors")
 
 # @Public method
+def get_sentiment_chat(text):
+  text = preprocess_text(text)
+  
+  return classify_ai(text, "sentiment")
+
+# @Public method
 def get_tags_embeddings(text):
   text = preprocess_text(text)
   article_embedding = get_embedding(text)
@@ -273,10 +280,11 @@ def get_subsector_embeddings(text):
 # body = "PT. Bank Raya Indonesia Tbk has scheduled a share buyback with a budget of IDR 20 billion, pending approval from shareholders on August 21, 2024, aiming to increase employee engagement in the company without affecting business operations. The buyback will be funded from internal cash, and the number of shares to be repurchased has not been disclosed, projected to be below 10% of the issued paid-up capital."
 # body = "PT Bank Syariah Indonesia (BSI) has made it to the top 5 state-owned enterprises with the largest market capitalization in Indonesia, reaching Rp116 trillion in July 2024. BSI's success is attributed to its inclusive, modern, and digital approach, with positive financial performance including distributing Rp855.56 billion cash dividends in 2023 and achieving a Rp1.71 trillion profit in Q1 2024 driven by robust growth in third-party funds and mobile banking transactions."
 # body = "Hary Tanoesoedibjo has rescued MNC Asia Holding by acquiring 26 million shares at Rp50 each, investing a total of Rp1.3 billion. Following the purchase, Tanoesoedibjo's portfolio now holds 2.59 billion shares, a 3.1% increase from before the transaction."
-# body = "Stocks in LQ45 index like UNVR, MBMA, and SIDO dropped as the market rose. UNVR closed at Rp 2,800, down by 2.10%, with a total transaction value of Rp 43.30 billion and a P/E ratio of 18.82x. Similarly, MBMA saw a 2.29% decline, closing at Rp 640, and SIDO ended at Rp 725 per share, down by 2.03%."
+body = "Stocks in LQ45 index like UNVR, MBMA, and SIDO dropped as the market rose. UNVR closed at Rp 2,800, down by 2.10%, with a total transaction value of Rp 43.30 billion and a P/E ratio of 18.82x. Similarly, MBMA saw a 2.29% decline, closing at Rp 640, and SIDO ended at Rp 725 per share, down by 2.03%."
 
 # print(get_tickers(body))
 # print(get_tags_chat(body))
 # print(get_subsector_chat(body))
 # print(get_tags_embeddings(body))
 # print(get_subsector_embeddings(body))
+# print(get_sentiment_chat(body))
