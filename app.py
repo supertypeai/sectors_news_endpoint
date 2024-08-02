@@ -263,19 +263,19 @@ def log_request_info(level, message):
 def delete_outdated_logs():
     logs = supabase.table('idx_news_logs').select('*').execute() 
     if len(logs.data) > 100:
-        one_week_ago = datetime.now(timezone.utc) - timedelta(weeks=1)
-        print(datetime.now(), one_week_ago)
+        two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
+        print(datetime.now(), two_days_ago)
         to_be_deleted = []
         for log in logs.data:
             log_timestamp = datetime.fromisoformat(log['timestamp'].replace('Z', '+00:00')).astimezone(timezone.utc)
-            if log_timestamp < one_week_ago:
+            if log_timestamp < two_days_ago:
                 to_be_deleted.append(log['id'])
         
         if to_be_deleted:
             try:
                 for log_id in to_be_deleted:
                     response = supabase.table('idx_news_logs').delete().eq('id', log_id).execute()
-                    print(f"Deleted log ID: {log_id}, {response}")
+                    print(f"Deleted log ID: {log_id}")
             except Exception as e:
                 print(f"Failed to delete logs: {e}")
 
