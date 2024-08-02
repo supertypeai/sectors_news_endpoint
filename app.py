@@ -11,6 +11,7 @@ from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article
 from scripts.summary_filings import summarize_filing
 from scripts.summary_news import summarize_news
+from scripts.classifier import get_tickers, get_tags_chat, get_subsector_chat, get_tags_embeddings, get_subsector_embeddings, get_sentiment_chat
 
 dotenv.load_dotenv()
 
@@ -262,7 +263,7 @@ def log_request_info(level, message):
     
 def delete_outdated_logs():
     logs = supabase.table('idx_news_logs').select('*').execute() 
-    if len(logs.data) > 100:
+    if len(logs.data) > 50:
         two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
         print(datetime.now(), two_days_ago)
         to_be_deleted = []
@@ -279,6 +280,42 @@ def delete_outdated_logs():
             except Exception as e:
                 print(f"Failed to delete logs: {e}")
 
+def generate_article(data):
+    source = data.get('source').strip()
+    timestamp_str = data.get('timestamp').strip()
+    timestamp_str = timestamp_str.replace('T', ' ')
+    timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+    
+    title, body = summarize_news(source)
+    if len(body) > 0: 
+        tickers = get_tickers(body)
+        tags = get_tags_embeddings(body)
+        sub_sector = get_subsector_embeddings(body)
+    
+        new_article = {
+            'title': title,
+            'body': body,
+            'source': source,
+            'timestamp': timestamp.isoformat(),
+            'sector': sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
+            'sub_sector': sub_sector,
+            'tags': tags,
+            'tickers': tickers
+        }
+        
+        return new_article
+    else:
+        new_article = {
+            'title': "",
+            'body': "",
+            'source': source,
+            'timestamp': timestamp.isoformat(),
+            'sector': "",
+            'sub_sector': "",
+            'tags': [],
+            'tickers': []
+        }
+        return new_article
 
 @app.route('/articles', methods=['POST'])
 @require_api_key
@@ -423,6 +460,16 @@ def update_insider_trading():
     result = update_insider_trading_supabase(input_data)
     return jsonify(result), result.get('status_code')
 
+@app.route('/url-article', methods=['POST'])
+@require_api_key
+def get_article_from_url():
+    log_request_info(logging.INFO, f'Received POST request to /url-article')
+    input_data = request.get_json()
+    try:
+        return generate_article(input_data), 200
+    except Exception as e:
+        return {}, 500
+    
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(file_path)

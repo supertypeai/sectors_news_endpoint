@@ -73,8 +73,14 @@ def get_article_body(url):
         article = g.extract(url=url)
         return article.cleaned_text
     except Exception as e:
-        print(f"Goose3 failed with error: {e}")
-        return ""
+        print(f"Goose3 failed with error, trying with no proxy: {e}")
+        try:
+            g = Goose()
+            article = g.extract(url=url)
+            return article.cleaned_text
+        except Exception as e:
+            print(f"Goose3 failed with error: {e}")
+            return ""
 
 def summarize_news(url):
     news_text = get_article_body(url)
