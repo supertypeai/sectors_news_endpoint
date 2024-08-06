@@ -10,4 +10,3 @@ scikit_learn==1.4.2
 supabase==2.6.0
 tiktoken==0.7.0
 lxml[html_clean]==4.9.3
-transformers==4.41.2
