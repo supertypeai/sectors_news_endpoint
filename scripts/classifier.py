@@ -1,6 +1,8 @@
+import dotenv
+dotenv.load_dotenv()
+
 import json
 from supabase import create_client, Client
-import dotenv
 import os
 from datetime import datetime
 from openai import OpenAI
@@ -9,7 +11,12 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import string
+
+from llama_index.llms.groq import Groq
 from sklearn.metrics.pairwise import cosine_similarity
+# from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+# from langchain_groq import ChatGroq
+# from langchain.agents import create_tool_calling_agent, AgentExecutor
 
 SUBSECTOR_LOAD = True
 TAG_LOAD = True
@@ -17,12 +24,15 @@ TAG_LOAD = True
 # PREPARATION
 nltk.data.path.append('./nltk_data')
 
-dotenv.load_dotenv()
 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), SUPABASE_KEY)
 client = OpenAI(
   api_key=os.getenv('OPENAI_API_KEY'),  
+)
+llm = Groq(
+    model="llama3-70b-8192",
+    api_key=os.getenv('GROQ_API_KEY'),
 )
 
 # DATA LOADING
@@ -140,9 +150,24 @@ def classify_ai(body, category):
     )
   return response.choices[0].message.content
 
+def classify_llama(body, category):
+  tags = load_tag_data()
+  company = load_company_data()
+  subsectors = load_subsector_data()
+  prompt = {
+        "tags": f"Tags: {', '.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, only answer in the format: [tag1, tag2, etc] and nothing else.",
+        "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format [ticker1, ticker2, etc] and nothing else.",
+        "subsectors": f"Subsectors: {', '.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, only answer in the format of subsector-name and nothing else.",
+        "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish)."
+  }
+
+  outputs = llm.complete(prompt[category])
+
+  return outputs  
+
 # @Private method
 def identify_company_names(body):
-  prompt = f"Identify all the company names mentioned in the following article:\n\n{body}\n\nList the company names in this format: A \n B \n\n For each company, for example PT. Antara Business Service (ABS), write it as Antara Business Service only"
+  prompt = f"Identify all the company names mentioned in the following article:\n\n{body}\n\n For each company, for example PT. Antara Business Service (ABS), write it as Antara Business Service only\n\nOnly answer in the format: A, B, etc.\n\n Say nothing else."
 
   response = client.chat.completions.create(
       model="gpt-3.5-turbo",
@@ -156,8 +181,14 @@ def identify_company_names(body):
       n=1
   )
   
-  company_names = response.choices[0].message.content.strip().split('\n')
-  return [name.strip() for name in company_names if name.strip()]
+  company_names = response.choices[0].message.content.strip().split(',')
+  company_names_list = [name.strip() for name in company_names if name.strip()]
+  company_names = str(llm.complete(prompt)).split(',')
+  print(company_names)
+  for name in company_names:
+    if name not in company_names_list:
+      company_names_list.append(name)
+  return company_names_list
 
 # @Private method
 def match_ticker_codes(company_names, company_data):
@@ -238,18 +269,21 @@ def get_tickers(text):
 # @Public method
 def get_tags_chat(text):
   text = preprocess_text(text)
-  return classify_ai(text, "tags")
+  # return classify_ai(text, "tags")
+  return classify_llama(text, "tags")
 
 # @Public method
 def get_subsector_chat(text):
   text = preprocess_text(text)
-  return classify_ai(text, "subsectors")
+  # return classify_ai(text, "subsectors")
+  return classify_llama(text, "subsectors")
 
 # @Public method
 def get_sentiment_chat(text):
   text = preprocess_text(text)
   
-  return classify_ai(text, "sentiment")
+  # return classify_ai(text, "sentiment")
+  return classify_llama(text, "sentiment")
 
 # @Public method
 def get_tags_embeddings(text):
@@ -291,10 +325,10 @@ def get_subsector_embeddings(text):
 #   print(get_tags_chat(text))
 #   print("CLASSIFIED SUBSECTOR METHOD 1")
 #   print(get_subsector_chat(text))
-#   print("CLASSIFIED TAGS METHOD 2")
-#   print(get_tags_embeddings(text))
-#   print("CLASSIFIED SUBSECTOR METHOD 2")
-#   print(get_subsector_embeddings(text))
+#   # print("CLASSIFIED TAGS METHOD 2")
+#   # print(get_tags_embeddings(text))
+#   # print("CLASSIFIED SUBSECTOR METHOD 2")
+#   # print(get_subsector_embeddings(text))
 #   print("CLASSIFIED SENTIMENT")
 #   print(get_sentiment_chat(text))
 #   print("")

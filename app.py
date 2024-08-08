@@ -290,7 +290,7 @@ def generate_article(data):
     if len(body) > 0: 
         tickers = get_tickers(body)
         tags = get_tags_embeddings(body)
-        sub_sector = get_subsector_embeddings(body)
+        sub_sector = get_subsector_chat(body)
     
         new_article = {
             'title': title,
