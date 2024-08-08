@@ -468,7 +468,7 @@ def get_article_from_url():
     try:
         return generate_article(input_data), 200
     except Exception as e:
-        return {}, 500
+        return {e}, 500
     
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
