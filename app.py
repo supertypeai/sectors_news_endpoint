@@ -287,6 +287,7 @@ def generate_article(data):
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     
     title, body = summarize_news(source)
+    print(title, body)
     if len(body) > 0: 
         tickers = get_tickers(body)
         tags = get_tags_embeddings(body)
@@ -468,7 +469,7 @@ def get_article_from_url():
     try:
         return generate_article(input_data), 200
     except Exception as e:
-        return {e}, 500
+        return e, 500
     
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
