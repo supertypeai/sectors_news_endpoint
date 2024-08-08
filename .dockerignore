@@ -3,3 +3,12 @@
 **\instance\*
 **\update_script.py
 fly.toml
+venv
+.env
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+Dockerfile
+.dockerignore
