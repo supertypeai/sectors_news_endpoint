@@ -1,14 +1,26 @@
-# flyctl launch added from .gitignore
-**\.env
-**\instance\*
-**\update_script.py
-fly.toml
-venv
+# Ignore virtual environments
+venv/
 .env
-__pycache__
+
+# Ignore compiled Python files
+__pycache__/
 *.pyc
 *.pyo
-.git
+
+# Ignore Git files
+.git/
 .gitignore
+
+# Ignore Docker configuration files
 Dockerfile
 .dockerignore
+
+# Ignore Fly.io specific files
+fly.toml
+
+# Ignore environment variable files
+**/.env
+
+# Ignore specific directories and files
+**/instance/*
+**/update_script.py
