@@ -298,14 +298,14 @@ def generate_article(data):
         }
     
     title, body = summarize_news(source)
-    print(title, body)
+    # print(title, body)
     if len(body) > 0: 
         tickers = get_tickers(body)
         tags = get_tags_chat(body)
         sub_sector = get_subsector_chat(body)
         sentiment = get_sentiment_chat(body)
         tags.append(sentiment[0])
-        print(tickers, tags, sub_sector)
+        # print(tickers, tags, sub_sector)
         
         new_article['title'] = title
         new_article['body'] = body
