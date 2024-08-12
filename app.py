@@ -309,7 +309,7 @@ def generate_article(data):
         
         new_article['title'] = title
         new_article['body'] = body
-        new_article['sector'] = sectors_data[sub_sector[0]] if sub_sector[0] in sectors_data.keys() else ""
+        new_article['sector'] = sectors_data[sub_sector[0].lower()] if sub_sector[0].lower() in sectors_data.keys() else ""
         new_article['sub_sector'] = sub_sector[0].lower()
         new_article['tags'] = tags
         new_article['tickers'] = tickers
