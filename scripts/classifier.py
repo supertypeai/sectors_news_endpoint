@@ -155,13 +155,15 @@ def classify_llama(body, category):
   company = load_company_data()
   subsectors = load_subsector_data()
   prompt = {
-        "tags": f"Tags: {', '.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, only answer in the format: [tag1, tag2, etc] and nothing else.",
-        "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format [ticker1, ticker2, etc] and nothing else.",
+        "tags": f"Tags: {', '.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, only answer in the format: 'tag1, tag2, etc' and nothing else.",
+        "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format 'ticker1, ticker2, etc' and nothing else.",
         "subsectors": f"Subsectors: {', '.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, only answer in the format of subsector-name and nothing else.",
         "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish)."
   }
 
   outputs = llm.complete(prompt[category])
+  outputs = str(outputs).split(',')
+  outputs = [out.strip() for out in outputs if out.strip()]
 
   return outputs  
 
@@ -184,7 +186,7 @@ def identify_company_names(body):
   company_names = response.choices[0].message.content.strip().split(',')
   company_names_list = [name.strip() for name in company_names if name.strip()]
   company_names = str(llm.complete(prompt)).split(',')
-  print(company_names)
+  # print(company_names)
   for name in company_names:
     if name not in company_names_list:
       company_names_list.append(name)

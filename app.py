@@ -286,27 +286,7 @@ def generate_article(data):
     timestamp_str = timestamp_str.replace('T', ' ')
     timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     
-    title, body = summarize_news(source)
-    print(title, body)
-    if len(body) > 0: 
-        tickers = get_tickers(body)
-        tags = get_tags_embeddings(body)
-        sub_sector = get_subsector_chat(body)
-    
-        new_article = {
-            'title': title,
-            'body': body,
-            'source': source,
-            'timestamp': timestamp.isoformat(),
-            'sector': sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
-            'sub_sector': sub_sector,
-            'tags': tags,
-            'tickers': tickers
-        }
-        
-        return new_article
-    else:
-        new_article = {
+    new_article = {
             'title': "",
             'body': "",
             'source': source,
@@ -316,6 +296,27 @@ def generate_article(data):
             'tags': [],
             'tickers': []
         }
+    
+    title, body = summarize_news(source)
+    print(title, body)
+    if len(body) > 0: 
+        tickers = get_tickers(body)
+        tags = get_tags_chat(body)
+        sub_sector = get_subsector_chat(body)
+        sentiment = get_sentiment_chat(body)
+        tags.append(sentiment[0])
+        print(tickers, tags, sub_sector)
+        
+        new_article['title'] = title
+        new_article['body'] = body
+        new_article['sector'] = sectors_data[sub_sector[0]] if sub_sector[0] in sectors_data.keys() else ""
+        new_article['sub_sector'] = sub_sector[0].lower()
+        new_article['tags'] = tags
+        new_article['tickers'] = tickers
+        
+        return new_article
+    else:
+        
         return new_article
 
 @app.route('/articles', methods=['POST'])
@@ -467,7 +468,8 @@ def get_article_from_url():
     log_request_info(logging.INFO, f'Received POST request to /url-article')
     input_data = request.get_json()
     try:
-        return generate_article(input_data), 200
+        data = generate_article(input_data)
+        return data, 200
     except Exception as e:
         return e, 500
     
