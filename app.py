@@ -43,6 +43,15 @@ with open('./data/sectors_data.json', 'r') as f:
 
 def sanitize_insert(data):
     new_article = sanitize_article(data)
+    
+    all_articles_db = supabase.table('idx_news').select('*').execute()
+    links = {}
+    for article_db in all_articles_db.data:
+      if article_db.get('source') not in links.keys():
+        links[article_db.get('source')] = article_db.get('id')
+    
+    if new_article.get('source') in links.keys():
+        return {"status": "restricted", "message": f"Insert failed! Duplicate source", "status_code": 400, "id_duplicate": links[new_article.get('source')]}
 
     try:
         response = supabase.table('idx_news').insert(new_article).execute()
