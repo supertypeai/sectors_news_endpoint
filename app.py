@@ -178,7 +178,7 @@ def sanitize_filing(data):
 
     return new_article
 
-def sanitize_filing_article(data):
+def sanitize_filing_article(data, generate=True):
     title = data.get('title').strip() if data.get('title') else None
     body = data.get('body').strip() if data.get('body') else None
     source = data.get('source').strip()
@@ -213,13 +213,14 @@ def sanitize_filing_article(data):
         "holder_name": holder_name,
     }
 
-    new_title, new_body = summarize_filing(new_article)
+    if generate:
+        new_title, new_body = summarize_filing(new_article)
 
-    if len(new_body) > 0:
-        new_article['body'] = new_body
-    
-    if len(new_title) > 0:
-        new_article['title'] = new_title
+        if len(new_body) > 0:
+            new_article['body'] = new_body
+        
+        if len(new_title) > 0:
+            new_article['title'] = new_title
 
     return new_article
 
@@ -233,7 +234,7 @@ def insert_insider_trading_supabase(data):
         return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
     
 def update_insider_trading_supabase(data):
-    new_article = sanitize_filing_article(data)
+    new_article = sanitize_filing_article(data, False)
     record_id = data.get('id')
 
     if not record_id:
