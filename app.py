@@ -172,6 +172,15 @@ def sanitize_filing(data):
 
     if len(new_body) > 0:
         new_article['body'] = new_body
+        tickers = get_tickers(new_body)
+        tags = get_tags_chat(new_body)
+        sentiment = get_sentiment_chat(new_body)
+        # sub_sector = get_subsector_chat(new_body)
+        tags.append(sentiment[0])
+        new_article['tags'].append(tags)
+        for ticker in tickers:
+            if ticker not in new_article['tickers']:
+                new_article['tickers'].append(ticker)
     
     if len(new_title) > 0:
         new_article['title'] = new_title
