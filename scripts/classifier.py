@@ -59,34 +59,35 @@ def load_subsector_data():
 
 # Tags data
 def load_tag_data():
+    # This tags is optimized for indonesia financial market
     tags = [
         # Economy
         "Inflation", "Recession", "Interest Rates",
 
         # Stock indexes
-        "FTSE", "IDX30", "JII70",
-        "LQ45", "SRIKEHATI", "S&P 500", "NASDAQ",
+        "IDX30", "JII70", "LQ45", "SRIKEHATI",
 
         # Stock Market
-        "IDX Composite", "Market Trends", "Market Sentiment", "BEI", "NYSE",
+        "IDX Composite", "Market Trends", "Market Sentiment", "IDX",
+
+        "Bonds", "Debt", "Fintech",
 
         # Commodities
-        "Coal", "Crude Oil", "Natural Gas", "Beverages", "Palm Oil", "Grains", "Timber", "Fertilizers",
-        "Metals and Minerals", "Precious Metals", "Gold",
+        "Energy Commodities", "Palm Oil", "Grains", "Timber", "Fertilizers",
+        "Metals and Minerals", "Gold",
 
         # Currencies
-        "IDR", "USD", "BTC", "ETH",
+        "IDR", "USD", "Cryptocurrency",
 
         # Company News
-        "Earnings Report", "Quarterly Report",
+        "Earnings Report",
         "Mergers & Acquisitions", "IPO", "Stock Splits", "Dividends",
-        "Executive Changes",
+        "Executive Changes", "Buyback",
 
         # Market Analysis
-        "Technical Analysis", "Chart Patterns", "Indicators", "Moving Averages",
+        "Technical Analysis", "Indicators",
         "Fundamental Analysis", "Valuation", "Financial Ratios", "Balance Sheets",
-        "Bullish", "Bearish", "Neutral",
-        "Day Trading", "Swing Trading", "Long-term Investing",
+        "Bullish", "Bearish", "Short Selling",
 
         # Events and Reports
         "Economic Reports", "Retail Sales", "Product Launch", "Conferences",
@@ -96,6 +97,7 @@ def load_tag_data():
 
         # Miscellaneous
         "ESG", "Green Energy", "Corporate Responsibility", "Renewable Energy",
+        "Sharia Economy", "Foreign Investor",
 
         # Technology Trends
         "Artificial Intelligence", "Blockchain"
