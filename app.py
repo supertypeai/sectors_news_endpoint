@@ -60,7 +60,7 @@ def sanitize_insert(data):
         return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
 
 def sanitize_update(data):
-    new_article = sanitize_article(data)
+    new_article = sanitize_article(data, False)
     record_id = data.get('id')
 
     if not record_id:
@@ -73,7 +73,7 @@ def sanitize_update(data):
     except Exception as e:
         return {"error": str(e), "status_code": 500}
 
-def sanitize_article(data):
+def sanitize_article(data, generate=True):
     # Sanitization v1.0
     title = data.get('title').strip() if data.get('title') else None
     body = data.get('body').strip() if data.get('body') else None
@@ -123,13 +123,14 @@ def sanitize_article(data):
         'tickers': tickers
     }
 
-    new_title, new_body = summarize_news(new_article['source'])
+    if generate:
+        new_title, new_body = summarize_news(new_article['source'])
 
-    if len(new_body) > 0:
-        new_article['body'] = new_body
-    
-    if len(new_title) > 0:
-        new_article['title'] = new_title
+        if len(new_body) > 0:
+            new_article['body'] = new_body
+        
+        if len(new_title) > 0:
+            new_article['title'] = new_title
     
     return new_article
 
