@@ -364,11 +364,17 @@ def get_articles():
 
     subsector = request.args.get('subsector')
     if not subsector:
-        request.args.get('sub_sector')        
+        request.args.get('sub_sector')     
+        
+    id = request.args.get('id')
+    
     try:
         query = supabase.table('idx_news').select('*')
         if subsector:
             query = query.eq('sub_sector', subsector)
+        
+        if id:
+            query = query.eq('id', id)
         
         response = query.execute()
         return jsonify(response.data), 200
