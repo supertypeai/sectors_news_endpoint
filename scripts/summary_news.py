@@ -1,21 +1,27 @@
+import dotenv
+dotenv.load_dotenv()
+
 from openai import OpenAI
 import os
-import dotenv
 import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 import tiktoken
 from goose3 import Goose
+from llama_index.llms.groq import Groq
 
 # NLTK download
 # nltk.download('punkt')
 nltk.data.path.append('./nltk_data')
 
-dotenv.load_dotenv()
 
 # Model Creation
 client = OpenAI(
   api_key=os.getenv('OPENAI_API_KEY'),  
+)
+llm = Groq(
+    model="llama3-70b-8192",
+    api_key=os.getenv('GROQ_API_KEY'),
 )
 
 def count_tokens(text):
@@ -38,6 +44,16 @@ def summarize_ai(news_text, category):
         max_tokens=150
     )
     return response.choices[0].message.content
+
+def summarize_llama(body, category):
+    prompt = {
+        "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Also capture the main essence of the news. (Give body summary without intro)",
+        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
+    }
+
+    output = str(llm.complete(prompt[category] + f"\n\nNews: {body}")).split("\n")[-1]
+
+    return output
 
 def preprocess_text(news_text):
     # Remove parenthesis
@@ -86,8 +102,8 @@ def summarize_news(url):
     news_text = get_article_body(url)
     if len(news_text) > 0:
         news_text = preprocess_text(news_text)
-        summary = summarize_ai(news_text, "body")
-        title = summarize_ai(news_text, "title")
+        summary = summarize_llama(news_text, "body")
+        title = summarize_llama(news_text, "title")
 
         return title, summary
     else:
