@@ -85,8 +85,8 @@ def load_tag_data():
         "Executive Changes", "Buyback",
 
         # Market Analysis
-        "Technical Analysis", "Indicators",
-        "Fundamental Analysis", "Valuation", "Financial Ratios", "Balance Sheets",
+        "Indicators",
+        "Market Analysis", "Valuation", "Financial Ratios", "Balance Sheets",
         "Bullish", "Bearish", "Short Selling",
 
         # Events and Reports
@@ -96,7 +96,7 @@ def load_tag_data():
         "Analyst Ratings",
 
         # Miscellaneous
-        "ESG", "Green Energy", "Corporate Responsibility", "Renewable Energy",
+        "ESG", "Clean Energy",
         "Sharia Economy", "Foreign Investor",
 
         # Technology Trends
