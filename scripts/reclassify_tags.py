@@ -15,21 +15,17 @@ if __name__ == "__main__":
         print("\n")
         print(f"ID {news['id']}")
 
-        # print("Title")
-        # print(news["title"])
-        # print("Body")
-        # print(news["body"])
+        print("Title")
+        print(news["title"])
+        print("Body")
+        print(news["body"])
         print("Old Tags")
         print(news['tags'])
         print("New Tags")
         new_tags = classify_llama(news['body'], "tags")
         print(new_tags)
 
-        i += 1
         print("\n")
-
-        if i == 5:
-            break
 
         supabase.table("idx_news").update({
             "tags": new_tags
