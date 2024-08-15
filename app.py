@@ -321,7 +321,7 @@ def generate_article(data):
     # print(title, body)
     if len(body) > 0: 
         tickers = get_tickers(body)
-        tags = get_tags_chat(body)
+        tags = get_tags_chat(body, preprocess=False)
         sub_sector = get_subsector_chat(body)
         sentiment = get_sentiment_chat(body)
         tags.append(sentiment[0])

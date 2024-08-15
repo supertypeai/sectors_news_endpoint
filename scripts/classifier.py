@@ -76,9 +76,6 @@ def load_tag_data():
         "Energy Commodities", "Palm Oil", "Grains", "Timber", "Fertilizers",
         "Metals and Minerals", "Gold",
 
-        # Currencies
-        "IDR", "USD", "Cryptocurrency",
-
         # Company News
         "Earnings Report",
         "Mergers & Acquisitions", "IPO", "Stock Splits", "Dividends",
@@ -158,8 +155,27 @@ def classify_llama(body, category):
     tags = load_tag_data()
     company = load_company_data()
     subsectors = load_subsector_data()
+
+    tags_prompt = f"""
+    This is a list of available tags: {', '.join(tag for tag in tags)}
+    ONLY USE TAGS THAT ARE MENTIONED HERE, DO NOT ADD TAGS THAT ARE NOT SPECIFIED.
+    
+    Identify AT MOST 5 most relevant tags based on the available tags that previously defined.
+    It does not have to be 5 tags, it can be 1 tag, 2 tag, 3 tag, or 4 5ag depending on ACTUAL RELEVANCE of the tags
+    
+    Only answer in the format: 'tag1, tag2, etc' and nothing else. 
+    
+    For `IPO` tag, only use for UPCOMING IPO, do not use for news that mention IPO in the past.
+    money value that use the currency.
+    Use `IDX` for news related to indonesia stock exchange or bursa efek indonesia
+    Use `IDX Composite` for news that related to PRICE of IDX or indeks harga saham gabungan
+    Use `Sharia Economy` for news that also mention sharia/ syariah company
+    
+    Article content: {body}
+    """
+
     prompt = {
-        "tags": f"Tags: {', '.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, only answer in the format: 'tag1, tag2, etc' and nothing else.",
+        "tags": tags_prompt,
         "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format 'ticker1, ticker2, etc' and nothing else.",
         "subsectors": f"Subsectors: {', '.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, only answer in the format of subsector-name and nothing else.",
         "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish)."
@@ -168,6 +184,9 @@ def classify_llama(body, category):
     outputs = llm.complete(prompt[category])
     outputs = str(outputs).split(',')
     outputs = [out.strip() for out in outputs if out.strip()]
+
+    if category == "tags":
+        outputs = [e for e in outputs if e in tags]
 
     return outputs
 
@@ -282,8 +301,11 @@ def get_tickers(text):
 
 
 # @Public method
-def get_tags_chat(text):
-    text = preprocess_text(text)
+def get_tags_chat(text, preprocess=True):
+
+    if preprocess:
+        text = preprocess_text(text)
+
     # return classify_ai(text, "tags")
     return classify_llama(text, "tags")
 
