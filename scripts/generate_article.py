@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from scripts.classifier import get_sentiment_chat, get_tags_chat
 from scripts.summary_filings import summarize_filing
 
 with open('./data/sectors_data.json', 'r') as f:
@@ -53,7 +54,7 @@ def extract_info(text):
         article_info["date_time"] = date_time_str
   return article_info
 
-def generate_article(pdf_url, sub_sector, holder_type, data):
+def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   # Handle for POST pdf
   article = {
     "title": "",
@@ -80,6 +81,7 @@ def generate_article(pdf_url, sub_sector, holder_type, data):
   article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
   article['tickers'] = [article_info['ticker'].upper() + ".JK"]
   article['timestamp'] = article_info['date_time'] + ":00"
+  article['timestamp']  = datetime.strptime(article['timestamp'], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
   article['transaction_type'] = ('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
@@ -91,6 +93,11 @@ def generate_article(pdf_url, sub_sector, holder_type, data):
 
   if len(new_body) > 0:
       article['body'] = new_body
+      tags = get_tags_chat(new_body)
+      sentiment = get_sentiment_chat(new_body)
+      tags.append(sentiment[0])
+      tags.append(article['tags'][0])
+      article['tags'] = tags
   
   if len(new_title) > 0:
       article['title'] = new_title

@@ -8,7 +8,7 @@ from supabase import create_client, Client
 from functools import wraps
 from scripts.metadata import extract_metadata
 from scripts.pdf_reader import extract_from_pdf
-from scripts.generate_article import generate_article
+from scripts.generate_article import generate_article_filings
 from scripts.summary_filings import summarize_filing
 from scripts.summary_news import summarize_news
 from scripts.classifier import get_tickers, get_tags_chat, get_subsector_chat, get_tags_embeddings, get_subsector_embeddings, get_sentiment_chat
@@ -243,8 +243,11 @@ def sanitize_filing_article(data, generate=True):
 
     return new_article
 
-def insert_insider_trading_supabase(data):
-    new_article = sanitize_filing(data)
+def insert_insider_trading_supabase(data, format=True):
+    if format:
+        new_article = sanitize_filing(data)
+    else:
+        new_article = sanitize_filing_article(data, generate=False)
     
     try:
         response = supabase.table('idx_filings').insert(new_article).execute()
@@ -253,7 +256,7 @@ def insert_insider_trading_supabase(data):
         return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
     
 def update_insider_trading_supabase(data):
-    new_article = sanitize_filing_article(data, False)
+    new_article = sanitize_filing_article(data, generate=False)
     record_id = data.get('id')
 
     if not record_id:
@@ -435,17 +438,23 @@ def add_pdf_article():
     if file and file.filename.lower().endswith('.pdf'):
         file_path = save_file(file)
         text = extract_from_pdf(file_path)
-        text = generate_article(source, sub_sector, type, text)
+        text = generate_article_filings(source, sub_sector, type, text)
         os.remove(file_path)
         
         try:
-            response = supabase.table('idx_filings').insert(text).execute()
+            return jsonify(text), 200
         except Exception as e:
             return {"status": "error", "message": f"Insert failed! Exception: {e}"}
 
-        return jsonify({"status": "success", "filename": file.filename, "response": response.data[0], "source": source, "sub_sector": sub_sector}), 200
     else:
         return jsonify({"status": "error", "message": "Invalid file type"}), 400
+    
+@app.route('/pdf/post', methods=['POST'])
+def add_filing_from_pdf():
+    log_request_info(logging.INFO, f'Received POST request to /pdf/post')
+    input_data = request.get_json()
+    result = insert_insider_trading_supabase(input_data, format=False)
+    return jsonify(result), result.get('status_code')
 
 @app.route('/insider-trading', methods=['POST'])
 @require_api_key

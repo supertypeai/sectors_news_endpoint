@@ -1,16 +1,22 @@
+import dotenv
+dotenv.load_dotenv()
+
 from openai import OpenAI
 import os
-import dotenv
 import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import tiktoken
 import json
+from llama_index.llms.groq import Groq
 
-dotenv.load_dotenv()
 
 # Model Creation
 client = OpenAI(
   api_key=os.getenv('OPENAI_API_KEY'),  
+)
+llm = Groq(
+    model="llama3-70b-8192",
+    api_key=os.getenv('GROQ_API_KEY'),
 )
 
 def count_tokens(text):
@@ -24,7 +30,7 @@ def summarize_ai(filings_text, category):
         "the change in ownership, the purpose of the transaction, and any potential implications or significance of this transaction:\n\n"
         f"\"{filings_text}\"\n\n"
         "Summary and Analysis:"),
-        "title": ("Provide a one sentence title for the transaction filing. Use this structure: (Holder type) (Transaction type) Transaction of (Company in transaction) (if any, include who the buyer/seller is)."
+        "title": ("Provide a one sentence title for the transaction filing. Use this structure: (Shareholder name) (Transaction type) Transaction of (Company in transaction) (if any, include who the buyer/seller is)."
         f"\"{filings_text}\"\n\n"
         "Title is (without quotation marks)")
         }
@@ -38,6 +44,21 @@ def summarize_ai(filings_text, category):
         max_tokens=150
     )
     return response.choices[0].message.content
+
+def summarize_llama(filings_text, category):
+    prompt = {
+        "body": ("Please analyze and summarize the following filing transaction into one paragraph with maximum 150 tokens, focusing on the key details such as the entities involved, the type of transaction, "
+        "the change in ownership, the purpose of the transaction, and any potential implications or significance of this transaction:\n\n"
+        f"\"{filings_text}\"\n\n"
+        "Summary and Analysis:"),
+        "title": ("Provide a one sentence title for the transaction filing. Use this structure: (Shareholder name) (Transaction type) Transaction of (Company in transaction) (if any, include who the buyer/seller is)."
+        f"\"{filings_text}\"\n\n"
+        "Title is (without quotation marks):")
+        }
+    
+    output = str(llm.complete(prompt[category])).split('\n')[-1]
+
+    return output
 
 def summarize_filing(data):
     news_text = {
@@ -55,8 +76,8 @@ def summarize_filing(data):
     news_text = json.dumps(news_text, indent = 2)
 
     # print(news_text, count_tokens(news_text))
-    summary = summarize_ai(news_text, "body")
+    summary = summarize_llama(news_text, "body")
     # print(summary)
-    title = summarize_ai(news_text, "title")
+    title = summarize_llama(news_text, "title")
 
     return title, summary
