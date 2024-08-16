@@ -166,7 +166,6 @@ def classify_llama(body, category):
     Only answer in the format: 'tag1, tag2, etc' and nothing else. 
     
     For `IPO` tag, only use for UPCOMING IPO, do not use for news that mention IPO in the past.
-    money value that use the currency.
     Use `IDX` for news related to indonesia stock exchange or bursa efek indonesia
     Use `IDX Composite` for news that related to PRICE of IDX or indeks harga saham gabungan
     Use `Sharia Economy` for news that also mention sharia/ syariah company
