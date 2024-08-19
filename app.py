@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
 
-def sanitize_insert(data):
-    new_article = sanitize_article(data)
+def sanitize_insert(data, generate=True):
+    new_article = sanitize_article(data, generate)
     
     all_articles_db = supabase.table('idx_news').select('*').execute()
     links = {}
@@ -60,7 +60,7 @@ def sanitize_insert(data):
         return {"status": "error", "message": f"Insert failed! Exception: {e}", "status_code": 500}
 
 def sanitize_update(data):
-    new_article = sanitize_article(data, False)
+    new_article = sanitize_article(data, generate=False)
     record_id = data.get('id')
 
     if not record_id:
@@ -244,6 +244,7 @@ def sanitize_filing_article(data, generate=True):
     return new_article
 
 def insert_insider_trading_supabase(data, format=True):
+    # format : needs formatting
     if format:
         new_article = sanitize_filing(data)
     else:
@@ -507,6 +508,14 @@ def get_article_from_url():
         return data, 200
     except Exception as e:
         return e, 500
+
+@app.route('/url-article/post', methods=['POST'])
+@require_api_key
+def post_article_from_url():
+    log_request_info(logging.INFO, f'Received POST request to /url-article/post')
+    input_data = request.get_json()
+    result = sanitize_insert(input_data, generate=False)
+    return jsonify(result), result.get('status_code')
     
 def save_file(file):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
