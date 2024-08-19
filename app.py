@@ -284,6 +284,7 @@ def log_request_info(level, message):
         print("Failed to insert log")
     
     delete_outdated_logs()
+    # delete_outdated_news()
     
 def delete_outdated_logs():
     logs = supabase.table('idx_news_logs').select('*').execute() 
@@ -303,6 +304,27 @@ def delete_outdated_logs():
                     print(f"Deleted log ID: {log_id}")
             except Exception as e:
                 print(f"Failed to delete logs: {e}")
+                
+def delete_outdated_news():
+    news = supabase.table('idx_news').select('*').order('timestamp', desc=False).execute()
+    if len(news.data) > 150:
+        one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        print(datetime.now(), one_week_ago)
+        to_be_deleted = []
+        for article in news.data:
+            log_timestamp = datetime.fromisoformat(article['timestamp'].replace('Z', '+00:00')).astimezone(timezone.utc)
+            if log_timestamp < one_week_ago:
+                to_be_deleted.append(article['id'])
+            if len(news.data) - len(to_be_deleted) < 150:
+                break
+        
+        if to_be_deleted:
+            try:
+                for article_id in to_be_deleted:
+                    response = supabase.table('idx_news').delete().eq('id', article_id).execute()
+                    print(f"Deleted news ID: {article_id}, {len(to_be_deleted)}")
+            except Exception as e:
+                print(f"Failed to delete news: {e}")
 
 def generate_article(data):
     source = data.get('source').strip()
