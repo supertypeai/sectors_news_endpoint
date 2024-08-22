@@ -137,7 +137,7 @@ def sanitize_article(data, generate=True):
 def sanitize_filing(data):
     document_number = data.get('document_number').strip() if data.get('nomor_surat') else None
     company_name = data.get('company_name').strip()
-    shareholder_name = data.get('shareholder_name').strip()
+    holder_name = data.get('holder_name').strip()
     source = data.get('source').strip()
     ticker = data.get('ticker').strip()
     category = data.get('category').strip()
@@ -163,8 +163,8 @@ def sanitize_filing(data):
     ticker = ticker.upper()
 
     new_article = {
-        'title': f"Informasi insider trading {shareholder_name} dalam {company_name}",
-        'body': f"{document_number} - {date_time} - Kategori {category} - {shareholder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
+        'title': f"Informasi insider trading {holder_name} dalam {company_name}",
+        'body': f"{document_number} - {date_time} - Kategori {category} - {holder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
         'source': source,
         'timestamp': str(date_time),
         'sector': sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
@@ -176,7 +176,7 @@ def sanitize_filing(data):
         "holding_before": holding_before,
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
-        "holder_name": shareholder_name
+        "holder_name": holder_name
     }
     new_title, new_body = summarize_filing(new_article)
 

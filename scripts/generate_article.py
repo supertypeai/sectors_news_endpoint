@@ -12,7 +12,7 @@ def extract_info(text):
   article_info = {
     "document_number": "",
     "company_name": "",
-    "shareholder_name": "",
+    "holder_name": "",
     "ticker": "",
     "category": "",
     "control_status": "",
@@ -29,7 +29,7 @@ def extract_info(text):
     if "Nama Perusahaan" in line:
       article_info["company_name"] = lines[i-1]
     if "Nama Pemegang Saham" in line:
-      article_info["shareholder_name"] = ' '.join(line.split()[3:])
+      article_info["holder_name"] = ' '.join(line.split()[3:])
     if "Kode Emiten" in line:
       article_info["ticker"] = lines[i-1]
     if "Kategori" in line:
@@ -77,8 +77,8 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
 
   article_info = extract_info(pdf_text)
 
-  article['title'] = f"Informasi insider trading {article_info['shareholder_name']} dalam {article_info['company_name']}"
-  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['shareholder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
+  article['title'] = f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
+  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['holder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
   article['tickers'] = [article_info['ticker'].upper() + ".JK"]
   article['timestamp'] = article_info['date_time'] + ":00"
   article['timestamp']  = datetime.strptime(article['timestamp'], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
@@ -86,7 +86,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
-  article['holder_name'] = article_info['shareholder_name']
+  article['holder_name'] = article_info['holder_name']
 
 
   new_title, new_body = summarize_filing(article)
