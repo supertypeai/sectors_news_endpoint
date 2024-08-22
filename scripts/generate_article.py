@@ -62,7 +62,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "source": pdf_url,
     "timestamp": "",
     "sub_sector": sub_sector,
-    "sector": sectors_data[sub_sector],
+    "sector": sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
     "tags": ["insider-trading"],
     "tickers": [],
     "transaction_type": '',
