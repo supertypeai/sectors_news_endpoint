@@ -2,3 +2,4 @@
 instance/*
 update_script.py
 .idea
+__pycache__
