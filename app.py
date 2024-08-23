@@ -15,8 +15,7 @@ from scripts.classifier import (
     get_tickers,
     get_tags_chat,
     get_subsector_chat,
-    get_tags_embeddings,
-    get_subsector_embeddings,
+    predict_dimension,
     get_sentiment_chat,
 )
 
@@ -56,6 +55,7 @@ with open("./data/sectors_data.json", "r") as f:
 def sanitize_insert(data, generate=True):
     new_article = sanitize_article(data, generate)
 
+    # todo optimize this query with select count where source equals
     all_articles_db = supabase.table("idx_news").select("*").execute()
     links = {}
     for article_db in all_articles_db.data:
@@ -118,6 +118,7 @@ def sanitize_article(data, generate=True):
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
     tags = data.get("tags", [])
     tickers = data.get("tickers", [])
+    dimension = data.get("dimension", None)
 
     for i, ticker in enumerate(tickers):
         split = ticker.split(".")
@@ -154,6 +155,7 @@ def sanitize_article(data, generate=True):
         "sub_sector": sub_sector,
         "tags": tags,
         "tickers": tickers,
+        "dimension": dimension,
     }
 
     if generate:
@@ -415,6 +417,7 @@ def generate_article(data):
         "sub_sector": "",
         "tags": [],
         "tickers": [],
+        "dimension": None,
     }
 
     title, body = summarize_news(source)
@@ -437,10 +440,10 @@ def generate_article(data):
         new_article["sub_sector"] = sub_sector[0].lower()
         new_article["tags"] = tags
         new_article["tickers"] = tickers
+        new_article["dimension"] = predict_dimension(title, body)
 
         return new_article
     else:
-
         return new_article
 
 
