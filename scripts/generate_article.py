@@ -1,3 +1,6 @@
+'''
+Script to generate an article from pdf reader for filings
+'''
 import json
 from datetime import datetime
 

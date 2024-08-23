@@ -1,3 +1,6 @@
+'''
+Script to summarize a filing into an article
+'''
 import dotenv
 dotenv.load_dotenv()
 

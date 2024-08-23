@@ -1,3 +1,6 @@
+'''
+Script to use LLM for summarizing a news article, uses OpenAI and Groq
+'''
 import dotenv
 dotenv.load_dotenv()
 

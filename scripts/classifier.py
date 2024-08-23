@@ -1,3 +1,6 @@
+'''
+Script to classify the tags, subsector, tickers, and sentiment of the news aarticle
+'''
 import dotenv
 
 dotenv.load_dotenv()
@@ -202,12 +205,22 @@ def classify_llama(body, category):
     
     Article content: {body}
     """
+    
+    subsector_prompt = f"""
+    This is a list of available subsectors: {', '.join(subsector for subsector in subsectors.keys())}
+    ONLY USE SUBSECTORS THAT ARE MENTIONED HERE, DO NOT ADD SUBSECTORS THAT ARE NOT SPECIFIED.
+    
+    Identify the subsector of the article.
+    Only answer in the format: 'subsector-name' and nothing else
+    
+    Article content: {body}.
+    """
 
     prompt = {
         "tags": tags_prompt,
         "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format 'ticker1, ticker2, etc' and nothing else.",
-        "subsectors": f"Subsectors: {', '.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, only answer in the format of subsector-name and nothing else.",
-        "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish).",
+        "subsectors": subsector_prompt,
+        "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish)."
     }
 
     outputs = llm.complete(prompt[category])

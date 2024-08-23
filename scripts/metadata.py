@@ -1,3 +1,6 @@
+'''
+Script to extract the title and body metadata from a news article page
+'''
 import ssl
 import dotenv
 import os

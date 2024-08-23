@@ -1,3 +1,6 @@
+'''
+Script to read PDF filings with IDX Format
+'''
 import pdfplumber
 
 def extract_from_pdf(filename):
