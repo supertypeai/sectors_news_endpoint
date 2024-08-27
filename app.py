@@ -9,6 +9,7 @@ from functools import wraps
 from scripts.metadata import extract_metadata
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
+from scripts.scorer import get_article_score
 from scripts.summary_filings import summarize_filing
 from scripts.summary_news import summarize_news
 from scripts.classifier import (
@@ -650,6 +651,12 @@ def post_article_from_url():
     input_data = request.get_json()
     result = sanitize_insert(input_data, generate=False)
     return jsonify(result), result.get("status_code")
+
+@app.route("/evaluate-article", methods=["POST"])
+@require_api_key
+def evaluate_article():
+    article = request.get_json().get("body")
+    return get_article_score(article)
 
 
 def save_file(file):

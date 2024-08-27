@@ -1,3 +1,6 @@
+'''
+Script to reclassify all the tags of the news in the current database
+'''
 import dotenv
 import os
 from supabase import create_client, Client

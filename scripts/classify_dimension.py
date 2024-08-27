@@ -1,3 +1,6 @@
+'''
+Script to classify the dimension of a news article
+'''
 import dotenv
 import os
 from supabase import create_client, Client
