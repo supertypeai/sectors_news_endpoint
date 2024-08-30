@@ -15,8 +15,8 @@ from llama_index.llms.groq import Groq
 
 # NLTK download
 # nltk.download('punkt')
+# nltk.download('punkt_tab', download_dir='./nltk_data')
 nltk.data.path.append('./nltk_data')
-nltk.download('punkt_tab')
 
 
 # Model Creation
