@@ -56,7 +56,6 @@ with open("./data/sectors_data.json", "r") as f:
 def sanitize_insert(data, generate=True):
     new_article = sanitize_article(data, generate)
 
-    # todo optimize this query with select count where source equals
     all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.get("source")).execute()
     links = {}
     for article_db in all_articles_db.data:
