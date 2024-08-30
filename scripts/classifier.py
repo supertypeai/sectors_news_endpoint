@@ -194,7 +194,7 @@ def classify_llama(body, category):
     ONLY USE TAGS THAT ARE MENTIONED HERE, DO NOT ADD TAGS THAT ARE NOT SPECIFIED.
     
     Identify AT MOST 5 most relevant tags based on the available tags that previously defined.
-    It does not have to be 5 tags, it can be 1 tag, 2 tag, 3 tag, or 4 5ag depending on ACTUAL RELEVANCE of the tags
+    It does not have to be 5 tags, it can be 1 tag, 2 tag, 3 tag, or 4 tag depending on ACTUAL RELEVANCE of the tags
     
     Only answer in the format: 'tag1, tag2, etc' and nothing else. 
     

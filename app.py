@@ -110,12 +110,26 @@ def sanitize_article(data, generate=True):
     timestamp_str = data.get("timestamp").strip()
     timestamp_str = timestamp_str.replace("T", " ")
     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-    sub_sector = (
-        data.get("sub_sector").strip()
-        if data.get("sub_sector")
-        else data.get("subsector").strip()
-    )
-    sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
+
+    sub_sector = []
+
+    if "sub_sector" in data and isinstance(data.get("sub_sector"), str) and data.get("sub_sector").strip() != "":
+        sub_sector.append(data.get("sub_sector").strip())
+    elif "subsector" in data and isinstance(data.get("subsector"), str) and data.get("subsector").strip() != "":
+        sub_sector.append(data.get("subsector").strip())
+    elif "sub_sector" in data and  isinstance(data.get("sub_sector"), list):
+        sub_sector = data.get("sub_sector")
+    elif "subsector" in data and  isinstance(data.get("subsector"), list):
+        sub_sector = data.get("subsector")
+
+    sector = ""
+
+    if "sector" in data and isinstance(data.get("sector"), str):
+        sector = data.get("sector").strip()
+    else:
+        if len(sub_sector) != 0 and sub_sector[0] in sectors_data.keys():
+            sector = sectors_data[sub_sector[0]]
+
     tags = data.get("tags", [])
     tickers = data.get("tickers", [])
     dimension = data.get("dimension", None)
@@ -414,7 +428,7 @@ def generate_article(data):
         "source": source,
         "timestamp": timestamp.isoformat(),
         "sector": "",
-        "sub_sector": "",
+        "sub_sector": [],
         "tags": [],
         "tickers": [],
         "dimension": None,
@@ -425,19 +439,30 @@ def generate_article(data):
     if len(body) > 0:
         tickers = get_tickers(body)
         tags = get_tags_chat(body, preprocess=False)
-        sub_sector = get_subsector_chat(body)
+        sub_sector_result = get_subsector_chat(body)
         sentiment = get_sentiment_chat(body)
         tags.append(sentiment[0])
-        # print(tickers, tags, sub_sector)
+
+        if len(tickers) == 0:
+            sub_sector = [sub_sector_result[0].lower()]
+        else:
+            result = supabase.rpc("get_companies_subsectors", {
+                "tickers": tickers
+            }).execute()
+
+            sub_sector = [each["sub_sector"] for each in result.data]
+
+        sector = ""
+
+        for e in sub_sector:
+            if e in sectors_data.keys():
+                sector = sectors_data[e]
+                break
 
         new_article["title"] = title
         new_article["body"] = body
-        new_article["sector"] = (
-            sectors_data[sub_sector[0].lower()]
-            if sub_sector[0].lower() in sectors_data.keys()
-            else ""
-        )
-        new_article["sub_sector"] = sub_sector[0].lower()
+        new_article["sector"] = sector
+        new_article["sub_sector"] = sub_sector
         new_article["tags"] = tags
         new_article["tickers"] = tickers
         new_article["dimension"] = predict_dimension(title, body)
