@@ -680,7 +680,7 @@ def post_article_from_url():
 @require_api_key
 def evaluate_article():
     article = request.get_json().get("body")
-    return get_article_score(article)
+    return jsonify({"score": str(get_article_score(article))})
 
 
 def save_file(file):
