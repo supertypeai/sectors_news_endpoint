@@ -71,8 +71,14 @@ bind = ':8080'
 workers = 2 * cpu_count() + 1
 worker_class = 'gthread'
 # worker_connections = 1000
-# timeout = 30
+timeout = 60
 # keepalive = 2
+
+threads = 2  # use 2 threads per worker
+
+max_requests = 5000  # restart worker after 5000 requests
+
+max_requests_jitter = 500
 
 #
 #   spew - Install a trace function that spews every line of Python
