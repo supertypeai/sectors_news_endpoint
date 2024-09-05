@@ -1,5 +1,6 @@
 import dotenv
 import logging
+import json
 
 dotenv.load_dotenv()
 
@@ -29,10 +30,17 @@ def log_request():
 @app.errorhandler(Exception)
 def handle_exception(e):
     if isinstance(e, HTTPException):
-        return e
+        print(e.original_exception)
+        response = e.get_response()
+        response.data = json.dumps({
+            "status":"error",
+            "message": str(e.original_exception),
+        })
+        response.content_type = "application/json"
 
-    return jsonify({"status": "error", "message": e}), 500
+        return response
 
+    return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/logs", methods=["GET"])
