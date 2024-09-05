@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from middleware.api_key import require_api_key
 from scripts.metadata import extract_metadata
-from handlers.support import log_request_info
 from database import supabase, sectors_data
 from datetime import datetime
 from scripts.scorer import get_article_score
@@ -22,7 +21,6 @@ articles_module = Blueprint('articles', __name__)
 @articles_module.route("/articles", methods=["POST"])
 @require_api_key
 def add_article():
-    log_request_info(logging.INFO, "Received POST request to /articles")
     input_data = request.get_json()
     result = sanitize_insert(input_data)
     return jsonify(result), result.get("status_code")
@@ -31,7 +29,6 @@ def add_article():
 @articles_module.route("/articles/list", methods=["POST"])
 @require_api_key
 def add_articles():
-    log_request_info(logging.INFO, "Received POST request to /articles/list")
     input_data = request.get_json()
     result_list = []
     for data in input_data:
@@ -42,8 +39,6 @@ def add_articles():
 
 @articles_module.route("/articles", methods=["GET"])
 def get_articles():
-    log_request_info(logging.INFO, "Received GET request to /articles")
-
     subsector = request.args.get("subsector")
     if not subsector:
         request.args.get("sub_sector")
@@ -69,7 +64,6 @@ def get_articles():
 def delete_article():
     input_data = request.get_json()
     id_list = input_data.get("id_list")
-    log_request_info(logging.INFO, f"Received DELETE request to /articles")
     list_result = []
     for id in id_list:
         try:
@@ -90,7 +84,6 @@ def delete_article():
 @articles_module.route("/articles", methods=["PATCH"])
 @require_api_key
 def update_article():
-    log_request_info(logging.INFO, "Received PATCH request to /articles")
     input_data = request.get_json()
     result = sanitize_update(input_data)
     return jsonify(result), result.get("status_code")
@@ -99,7 +92,6 @@ def update_article():
 @articles_module.route("/url-article", methods=["POST"])
 @require_api_key
 def get_article_from_url():
-    log_request_info(logging.INFO, f"Received POST request to /url-article")
     input_data = request.get_json()
     try:
         data = generate_article(input_data)
@@ -111,7 +103,6 @@ def get_article_from_url():
 @articles_module.route("/url-article/post", methods=["POST"])
 @require_api_key
 def post_article_from_url():
-    log_request_info(logging.INFO, f"Received POST request to /url-article/post")
     input_data = request.get_json()
     result = sanitize_insert(input_data, generate=False)
     return jsonify(result), result.get("status_code")
