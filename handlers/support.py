@@ -70,4 +70,4 @@ def log_request_info(level, message):
         print("Failed to insert log")
 
     delete_outdated_logs()
-    # delete_outdated_news()
+    delete_outdated_news()

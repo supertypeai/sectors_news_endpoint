@@ -12,6 +12,7 @@ import nltk
 import tiktoken
 from goose3 import Goose
 from llama_index.llms.groq import Groq
+from requests import Session
 
 # NLTK download
 # nltk.download('punkt')
@@ -89,7 +90,10 @@ def get_article_body(url):
         proxy = os.environ.get("PROXY_KEY")
 
         proxy_support = {'http': proxy,'https': proxy}
-        g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
+        session = Session()
+        session.proxies.update(proxy_support)
+        # g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
+        g = Goose({'http_session': session})
         article = g.extract(url=url)
         return article.cleaned_text
     except Exception as e:
