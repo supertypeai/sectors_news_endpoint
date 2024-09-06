@@ -246,7 +246,9 @@ Standard Scores for Example Articles
    Given the scoring criteria of a news article with relevance to the Indonesia Stock Market. 
    {criteria} 
    
-   Answer only with the score, example: 100"""
+   Answer only with the score, example: 100
+   
+   If no article is given, give it a score of 0"""
 
    outputs = llm.complete(prompt)
 
