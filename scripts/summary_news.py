@@ -110,15 +110,16 @@ def get_article_body(url):
         # g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
         g = Goose({'http_session': session})
         article = g.extract(url=url)
+        print(f"[SUCCESS] Article from url {url} inferenced")
         return article.cleaned_text
     except Exception as e:
-        print(f"Goose3 failed with error, trying with no proxy: {e}")
+        print(f"[PROXY FAIL] Goose3 failed with error, trying with no proxy: {e} to url {url}")
         try:
             g = Goose()
             article = g.extract(url=url)
             return article.cleaned_text
         except Exception as e:
-            print(f"Goose3 failed with error: {e}")
+            print(f"[ERROR] Goose3 failed with error: {e}")
             return ""
 
 def summarize_news(url):
