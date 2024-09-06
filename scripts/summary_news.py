@@ -29,6 +29,20 @@ llm = Groq(
     api_key=os.getenv('GROQ_API_KEY'),
 )
 
+USER_AGENT = 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36'
+HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "*/*",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+    'x-test': 'true',
+}
+
 def count_tokens(text):
     enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
     tokens = enc.encode(text)
@@ -92,8 +106,7 @@ def get_article_body(url):
         proxy_support = {'http': proxy,'https': proxy}
         session = Session()
         session.proxies.update(proxy_support)
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        session.headers.update(headers)
+        session.headers.update(HEADERS)
         # g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
         g = Goose({'http_session': session})
         article = g.extract(url=url)
