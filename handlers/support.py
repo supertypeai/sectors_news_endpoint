@@ -2,57 +2,38 @@ from flask import request
 from database import supabase
 from datetime import datetime, timedelta, timezone
 
+last_delete_logs_run = None
+last_delete_news_run = None
+
 
 def delete_outdated_news():
-    news = (
-        supabase.table("idx_news").select("*").order("timestamp", desc=False).execute()
-    )
-    outdated_news = datetime.now(timezone.utc) - timedelta(days=120)
-    print(datetime.now(), outdated_news)
-    to_be_deleted = []
-    for article in news.data:
-        log_timestamp = datetime.fromisoformat(
-            article["timestamp"].replace("Z", "+00:00")
-        ).astimezone(timezone.utc)
-        if log_timestamp < outdated_news:
-            to_be_deleted.append(article["id"])
+    global last_delete_news_run
 
-    if to_be_deleted:
-        try:
-            for article_id in to_be_deleted:
-                response = (
-                    supabase.table("idx_news").delete().eq("id", article_id).execute()
-                )
-                print(f"Deleted news ID: {article_id}, {len(to_be_deleted)}")
-        except Exception as e:
-            print(f"Failed to delete news: {e}")
+    now = datetime.now()
+
+    if last_delete_news_run is not None and last_delete_news_run > now - timedelta(hours=6):
+        return
+
+    try:
+        supabase.table("idx_news").delete().lte("created_at", datetime.now(timezone.utc) - timedelta(days=120)).execute()
+        last_delete_news_run = now
+    except Exception as e:
+        print(f"Failed to delete logs: {e}")
 
 
 def delete_outdated_logs():
-    logs = supabase.table("idx_news_logs").select("*").execute()
-    if len(logs.data) > 50:
-        two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
-        print(datetime.now(), two_days_ago)
-        to_be_deleted = []
-        for log in logs.data:
-            log_timestamp = datetime.fromisoformat(
-                log["timestamp"].replace("Z", "+00:00")
-            ).astimezone(timezone.utc)
-            if log_timestamp < two_days_ago:
-                to_be_deleted.append(log["id"])
+    global last_delete_logs_run
 
-        if to_be_deleted:
-            try:
-                for log_id in to_be_deleted:
-                    response = (
-                        supabase.table("idx_news_logs")
-                        .delete()
-                        .eq("id", log_id)
-                        .execute()
-                    )
-                    print(f"Deleted log ID: {log_id}")
-            except Exception as e:
-                print(f"Failed to delete logs: {e}")
+    now = datetime.now()
+
+    if last_delete_logs_run is not None and last_delete_logs_run > now - timedelta(hours=6):
+        return
+
+    try:
+        supabase.table("idx_news_logs").delete().lte("timestamp", datetime.now(timezone.utc) - timedelta(days=7)).execute()
+        last_delete_logs_run = now
+    except Exception as e:
+        print(f"Failed to delete logs: {e}")
 
 
 def log_request_info(level, message):

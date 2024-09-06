@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from middleware.api_key import require_api_key
 from scripts.metadata import extract_metadata
-from handlers.support import log_request_info
 from database import supabase, sectors_data
 from datetime import datetime
 from scripts.scorer import get_article_score
@@ -14,7 +13,6 @@ from scripts.classifier import (
     get_sentiment_chat,
 )
 
-import logging
 
 articles_module = Blueprint('articles', __name__)
 
@@ -22,7 +20,6 @@ articles_module = Blueprint('articles', __name__)
 @articles_module.route("/articles", methods=["POST"])
 @require_api_key
 def add_article():
-    log_request_info(logging.INFO, "Received POST request to /articles")
     input_data = request.get_json()
     result = sanitize_insert(input_data)
     return jsonify(result), result.get("status_code")
@@ -31,7 +28,6 @@ def add_article():
 @articles_module.route("/articles/list", methods=["POST"])
 @require_api_key
 def add_articles():
-    log_request_info(logging.INFO, "Received POST request to /articles/list")
     input_data = request.get_json()
     result_list = []
     for data in input_data:
@@ -42,26 +38,21 @@ def add_articles():
 
 @articles_module.route("/articles", methods=["GET"])
 def get_articles():
-    log_request_info(logging.INFO, "Received GET request to /articles")
-
     subsector = request.args.get("subsector")
     if not subsector:
         request.args.get("sub_sector")
 
     id = request.args.get("id")
 
-    try:
-        query = supabase.table("idx_news").select("*")
-        if subsector:
-            query = query.eq("sub_sector", subsector)
+    query = supabase.table("idx_news").select("*")
+    if subsector:
+        query = query.eq("sub_sector", subsector)
 
-        if id:
-            query = query.eq("id", id)
+    if id:
+        query = query.eq("id", id)
 
-        response = query.execute()
-        return jsonify(response.data), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": {e.message}}), 500
+    response = query.execute()
+    return jsonify(response.data), 200
 
 
 @articles_module.route("/articles", methods=["DELETE"])
@@ -69,28 +60,14 @@ def get_articles():
 def delete_article():
     input_data = request.get_json()
     id_list = input_data.get("id_list")
-    log_request_info(logging.INFO, f"Received DELETE request to /articles")
-    list_result = []
-    for id in id_list:
-        try:
-            supabase.table("idx_news").delete().eq("id", id).execute()
-            list_result.append(
-                {"status": "success", "message": f"Article with id {id} deleted"}
-            )
-        except Exception as e:
-            list_result.append(
-                {
-                    "status": "error",
-                    "message": f"Error deleting article with id {id}: {e}",
-                }
-            )
-    return jsonify(list_result)
+    supabase.table("idx_news").delete().in_("id", id_list).execute()
+    return jsonify({"status": "success", "message": f"Deleted"}), 200
+
 
 
 @articles_module.route("/articles", methods=["PATCH"])
 @require_api_key
 def update_article():
-    log_request_info(logging.INFO, "Received PATCH request to /articles")
     input_data = request.get_json()
     result = sanitize_update(input_data)
     return jsonify(result), result.get("status_code")
@@ -99,19 +76,14 @@ def update_article():
 @articles_module.route("/url-article", methods=["POST"])
 @require_api_key
 def get_article_from_url():
-    log_request_info(logging.INFO, f"Received POST request to /url-article")
     input_data = request.get_json()
-    try:
-        data = generate_article(input_data)
-        return data, 200
-    except Exception as e:
-        return e, 500
+    data = generate_article(input_data)
+    return data, 200
 
 
 @articles_module.route("/url-article/post", methods=["POST"])
 @require_api_key
 def post_article_from_url():
-    log_request_info(logging.INFO, f"Received POST request to /url-article/post")
     input_data = request.get_json()
     result = sanitize_insert(input_data, generate=False)
     return jsonify(result), result.get("status_code")
@@ -141,15 +113,8 @@ def sanitize_insert(data, generate=True):
             "id_duplicate": links[new_article.get("source")],
         }
 
-    try:
-        response = supabase.table("idx_news").insert(new_article).execute()
-        return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Insert failed! Exception: {e}",
-            "status_code": 500,
-        }
+    response = supabase.table("idx_news").insert(new_article).execute()
+    return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
 
 def sanitize_update(data):
@@ -159,19 +124,15 @@ def sanitize_update(data):
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
 
-    try:
-        response = (
-            supabase.table("idx_news").update(new_article).eq("id", record_id).execute()
-        )
+    response = (
+        supabase.table("idx_news").update(new_article).eq("id", record_id).execute()
+    )
 
-        return {
-            "message": "Record updated successfully from table idx_news",
-            "data": response.data,
-            "status_code": 200,
-        }
-    except Exception as e:
-        return {"error": str(e), "status_code": 500}
-
+    return {
+        "message": "Record updated successfully from table idx_news",
+        "data": response.data,
+        "status_code": 200,
+    }
 
 def sanitize_article(data, generate=True):
     # Sanitization v1.0

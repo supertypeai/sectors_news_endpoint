@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
 from middleware.api_key import require_api_key
-from handlers.support import log_request_info
 from database import supabase, sectors_data
 from datetime import datetime
 from scripts.pdf_reader import extract_from_pdf
@@ -12,7 +11,6 @@ from scripts.classifier import (
     get_sentiment_chat,
 )
 import os
-import logging
 
 fillings_module = Blueprint('fillings', __name__)
 
@@ -20,7 +18,6 @@ fillings_module = Blueprint('fillings', __name__)
 @fillings_module.route("/pdf", methods=["POST"])
 @require_api_key
 def add_pdf_article():
-    log_request_info(logging.INFO, f"Received POST request to /pdf")
     if "file" not in request.files:
         return jsonify({"status": "error", "message": "No file part"}), 400
 
@@ -56,7 +53,6 @@ def add_pdf_article():
 
 @fillings_module.route("/pdf/post", methods=["POST"])
 def add_filing_from_pdf():
-    log_request_info(logging.INFO, f"Received POST request to /pdf/post")
     input_data = request.get_json()
     result = insert_insider_trading_supabase(input_data, format=False)
     return jsonify(result), result.get("status_code")
@@ -65,7 +61,6 @@ def add_filing_from_pdf():
 @fillings_module.route("/insider-trading", methods=["POST"])
 @require_api_key
 def add_insider_trading():
-    log_request_info(logging.INFO, f"Received POST request to /insider-trading")
     input_data = request.get_json()
     result = insert_insider_trading_supabase(input_data)
     return jsonify(result), result.get("status_code")
@@ -74,41 +69,22 @@ def add_insider_trading():
 @fillings_module.route("/insider-trading", methods=["GET"])
 @require_api_key
 def get_insider_trading():
-    log_request_info(logging.INFO, f"Received GET request to /insider-trading")
-    try:
-        response = supabase.table("idx_filings").select("*").execute()
-        return response.data
-    except Exception as e:
-        return jsonify({"status": "error", "message": e}), 500
+    response = supabase.table("idx_filings").select("*").execute()
+    return response.data
 
 
 @fillings_module.route("/insider-trading", methods=["DELETE"])
 @require_api_key
 def delete_insider_trading():
-    log_request_info(logging.INFO, f"Received DELETE request to /insider-trading")
     input_data = request.get_json()
     id_list = input_data.get("id_list")
-    list_result = []
-    for id in id_list:
-        try:
-            supabase.table("idx_filings").delete().eq("id", id).execute()
-            list_result.append(
-                {"status": "success", "message": f"Filing with id {id} deleted"}
-            )
-        except Exception as e:
-            list_result.append(
-                {
-                    "status": "error",
-                    "message": f"Error deleting filing with id {id}: {e}",
-                }
-            )
-    return jsonify(list_result)
+    supabase.table("idx_filings").delete().in_("id", id_list).execute()
+    return jsonify({"status": "success", "message": "Deleted"}), 200
 
 
 @fillings_module.route("/insider-trading", methods=["PATCH"])
 @require_api_key
 def update_insider_trading():
-    log_request_info(logging.INFO, f"Received PATCH request to /insider-trading")
     input_data = request.get_json()
     result = update_insider_trading_supabase(input_data)
     return jsonify(result), result.get("status_code")
@@ -242,15 +218,8 @@ def insert_insider_trading_supabase(data, format=True):
     else:
         new_article = sanitize_filing_article(data, generate=False)
 
-    try:
-        response = supabase.table("idx_filings").insert(new_article).execute()
-        return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Insert failed! Exception: {e}",
-            "status_code": 500,
-        }
+    response = supabase.table("idx_filings").insert(new_article).execute()
+    return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
 
 def update_insider_trading_supabase(data):
@@ -259,21 +228,19 @@ def update_insider_trading_supabase(data):
 
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
-    try:
-        response = (
-            supabase.table("idx_filings")
-            .update(new_article)
-            .eq("id", record_id)
-            .execute()
-        )
 
-        return {
-            "message": "Record updated successfully from table ifx_filings",
-            "data": response.data,
-            "status_code": 200,
-        }
-    except Exception as e:
-        return {"error": str(e), "status_code": 500}
+    response = (
+        supabase.table("idx_filings")
+        .update(new_article)
+        .eq("id", record_id)
+        .execute()
+    )
+
+    return {
+        "message": "Record updated successfully from table ifx_filings",
+        "data": response.data,
+        "status_code": 200,
+    }
 
 
 def save_file(file, upload_folder):
