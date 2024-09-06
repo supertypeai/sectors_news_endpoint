@@ -92,6 +92,8 @@ def get_article_body(url):
         proxy_support = {'http': proxy,'https': proxy}
         session = Session()
         session.proxies.update(proxy_support)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        session.headers.update(headers)
         # g = Goose({'http_proxies': proxy_support, 'https_proxies': proxy_support})
         g = Goose({'http_session': session})
         article = g.extract(url=url)
