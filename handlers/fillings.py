@@ -97,7 +97,7 @@ def sanitize_filing(data):
     company_name = data.get("company_name").strip()
     holder_name = data.get("holder_name").strip()
     source = data.get("source").strip()
-    ticker = data.get("ticker").strip()
+    ticker = data.get("ticker").strip() if data.get("ticker") else None
     category = data.get("category").strip()
     control_status = data.get("control_status").strip()
     holding_before = data.get("holding_before")
