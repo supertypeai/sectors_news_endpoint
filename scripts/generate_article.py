@@ -85,13 +85,15 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['tickers'] = [article_info['ticker'].upper() + ".JK"]
   article['timestamp'] = article_info['date_time'] + ":00"
   article['timestamp']  = datetime.strptime(article['timestamp'], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
-  article['transaction_type'] = ('buy' if article_info['shareholding_before'] < article_info['shareholding_after'] else 'sell')
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
+  article['transaction_type'] = ('buy' if article['holding_before'] < article['holding_after'] else 'sell')
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']
 
-  print(f"[ORIGINAL FILINGS ARTICLE]\n" + article)
+  # print(f"[ORIGINAL FILINGS ARTICLE]")
+  # for key, value in article.items():
+  #   print(f"{key}: {value}")
   new_title, new_body = summarize_filing(article)
 
   if len(new_body) > 0:
@@ -104,7 +106,9 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   
   if len(new_title) > 0:
       article['title'] = new_title
-  print(f"[GENERATED FILINGS ARTICLE]\n" + article)
+  # print(f"[GENERATED FILINGS ARTICLE]")
+  # for key, value in article.items():
+  #   print(f"{key}: {value}")
   return article
 
 def get_first_word(s):
