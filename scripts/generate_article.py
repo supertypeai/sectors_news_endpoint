@@ -91,7 +91,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']
 
-
+  print(f"[ORIGINAL FILINGS ARTICLE]\n" + article)
   new_title, new_body = summarize_filing(article)
 
   if len(new_body) > 0:
@@ -104,7 +104,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   
   if len(new_title) > 0:
       article['title'] = new_title
-    
+  print(f"[GENERATED FILINGS ARTICLE]\n" + article)
   return article
 
 def get_first_word(s):
