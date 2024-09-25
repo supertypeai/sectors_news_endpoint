@@ -44,9 +44,7 @@ def extract_info(text):
     if "Jumlah Saham Setelah Transaksi" in line:
       article_info["shareholding_after"] = line.split()[-1]
     if "Tujuan Transaksi" in line:
-      word = get_first_word(line.split()[2]).lower()
-      article_info["purpose"] = word if word == 'investasi' or word == 'divestasi' else ''
-      article_info["purpose"] += " (penambahan aset)" if word == 'investasi' else " (pengurangan aset)" if word == 'divestasi' else ""
+      article_info["purpose"] = line.split()[2:]
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
       date_time_str = ' '.join(line.split()[3:])
       try:
@@ -73,7 +71,8 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "holding_before": 0,
     "holding_after": 0,
     "amount_transaction": 0,
-    "holder_name": ""
+    "holder_name": "",
+    "purpose": ""
   }
 
   pdf_text = data
@@ -90,6 +89,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['transaction_type'] = ('buy' if article['holding_before'] < article['holding_after'] else 'sell')
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']
+  article['purpose'] = article_info['purpose']
 
   # print(f"[ORIGINAL FILINGS ARTICLE]")
   # for key, value in article.items():

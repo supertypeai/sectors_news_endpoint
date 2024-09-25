@@ -73,7 +73,8 @@ def summarize_filing(data):
             "sub_sector": data['sub_sector'],
             "timestamp": data['timestamp'],
             "title": data['title'],
-            "transaction_type": data['transaction_type']
+            "transaction_type": data['transaction_type'],
+            "purpose": data['purpose'] if data.get('purpose') else "",
         }
 
     news_text = json.dumps(news_text, indent = 2)
