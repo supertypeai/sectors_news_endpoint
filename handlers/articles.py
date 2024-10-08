@@ -98,7 +98,7 @@ def evaluate_article():
 
 def sanitize_insert(data, generate=True):
     new_article = sanitize_article(data, generate)
-
+    # Redundancy check, ignore article that has the same URL
     all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.get("source")).execute()
     links = {}
     for article_db in all_articles_db.data:
@@ -113,6 +113,7 @@ def sanitize_insert(data, generate=True):
             "id_duplicate": links[new_article.get("source")],
         }
 
+    # Insert new article
     response = supabase.table("idx_news").insert(new_article).execute()
     return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
@@ -145,6 +146,7 @@ def sanitize_article(data, generate=True):
 
     sub_sector = []
 
+    # Handle get subsector (subsector, sub_sector) (string, list, empty)
     if "sub_sector" in data and isinstance(data.get("sub_sector"), str) and data.get("sub_sector").strip() != "":
         sub_sector.append(data.get("sub_sector").strip())
     elif "subsector" in data and isinstance(data.get("subsector"), str) and data.get("subsector").strip() != "":
@@ -156,11 +158,14 @@ def sanitize_article(data, generate=True):
 
     sector = ""
 
+    # Get sector if already exists, if not, generate with dictionary
     if "sector" in data and isinstance(data.get("sector"), str):
         sector = data.get("sector").strip()
     else:
         if len(sub_sector) != 0 and sub_sector[0] in sectors_data.keys():
             sector = sectors_data[sub_sector[0]]
+        else:
+            sector = ""
 
     tags = data.get("tags", [])
     tickers = data.get("tickers", [])
@@ -237,14 +242,25 @@ def generate_article(data):
     title, body = summarize_news(source)
     # print(title, body)
     if len(body) > 0:
+        # Generate the metadata for the new article
         tickers = get_tickers(body)
         tags = get_tags_chat(body, preprocess=False)
         sub_sector_result = get_subsector_chat(body)
         sentiment = get_sentiment_chat(body)
         tags.append(sentiment[0])
+        
+        # Check generated tickers
+        checked_tickers = []
+        valid_tickers = supabase.rpc("get_tickers").execute().data['data']
+        for ticker in tickers:
+            if ticker in valid_tickers or ticker + ".JK" in valid_tickers:
+                checked_tickers.append(ticker)
+        tickers = checked_tickers
 
+        # If no ticker detected, use generated subsector
         if len(tickers) == 0:
             sub_sector = [sub_sector_result[0].lower()]
+        # If ticker detected, get the company's subsector
         else:
             result = supabase.rpc("get_companies_subsectors", {
                 "tickers": tickers
