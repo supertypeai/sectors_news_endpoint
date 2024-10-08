@@ -220,7 +220,7 @@ def classify_llama(body, category):
         "tags": tags_prompt,
         "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format 'ticker1, ticker2, etc' and nothing else.",
         "subsectors": subsector_prompt,
-        "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. Answer in one word (bullish or bearish)."
+        "sentiment": f"Classify the sentiment of the article ('bullish', 'bearish', 'neutral'). Article: {body}. Answer in one word (bullish or bearish or neutral)."
     }
 
     outputs = llm.complete(prompt[category])
