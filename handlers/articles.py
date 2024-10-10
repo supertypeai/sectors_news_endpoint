@@ -1,7 +1,8 @@
+import json
 from flask import Blueprint, request, jsonify
 from middleware.api_key import require_api_key
 from scripts.metadata import extract_metadata
-from database import supabase, sectors_data
+from database import supabase, sectors_data, top300_data
 from datetime import datetime
 from scripts.scorer import get_article_score
 from scripts.summary_news import summarize_news
@@ -103,34 +104,34 @@ def evaluate_article():
         return jsonify({"score": str(0)})
     
 def filter_fp(article):
-    indo_indicator = ['INDONESIA', 'INDONESIAN', 'NUSANTARA', 'JAVA', 'JAKARTA', 'JAWA', 'IHSG', 'IDR', 'PT', 'IDX', 'TBK']
+    # article title
+    body = article['body'].upper().replace(',', ' ').replace('.', ' ').replace('-', ' ').replace("'", ' ').split(' ')
+    title = article['title'].upper().replace(',', ' ').replace('.', ' ').replace('-', ' ').replace("'", ' ').split(' ')
+    text = [*title, *body]
     
-    response = supabase.table('idx_company_report') \
-        .select('symbol') \
-        .order('market_cap_rank', desc=False) \
-        .limit(300) \
-        .execute()
+    # Indonesia relevancy indicator with keywords
+    indo_indicator = ['INDONESIA', 'INDONESIAN', 'NUSANTARA', 'JAVA', 'JAKARTA', 'JAWA', 'IHSG', 'IDR', 'PT', 'IDX', 'TBK', 'OJK']
     
-    symbols = [record['symbol'] for record in response.data]
+    # Get top 300 market cap companies
+    top300 = top300_data
     
+    symbols = [record['symbol'] for record in top300]
+
+    # Combine the filter  
     filter = [*indo_indicator, *symbols]
-    # print(filter)
-    
-    title = article['title'].upper().replace(',', '').replace('.', '').split(' ')
-    # print(title)
+
     
     # Indonesia's Indicator filter, or ticker filter (top 300 market cap)
     condition_1_2 = False
-    for word in title:
+    for word in text:
         if word in filter:
             condition_1_2 = True
             break
     
     # If it has ticker
     cond3 = len(article['tickers']) > 0
-    # print("condition 1 and 2", condition_1_2)
-    # print("condition 3", cond3)
     result = condition_1_2 | cond3
+    # True pass, False is not high quality
     return result
 
 def sanitize_insert(data, generate=True):
