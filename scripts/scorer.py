@@ -234,7 +234,14 @@ Standard Scores for Example Articles
 
 95 Score: The article includes all the above qualities, with additional insight into long-term market impacts, multiple sector focuses, and comprehensive forward-looking statements. Example: “PT X’s strategic acquisition and upcoming merger, along with their new dividend policy, are projected to drive long-term growth in the Indonesian market.”
 
-100 Score: The article is from a top-tier source, published within the last 24 hours, covers multiple Primary and Secondary CTAs, offers in-depth analysis with detailed financial metrics, balanced reporting, comprehensive forward-looking statements, and discusses immediate and long-term market impacts. Example: “PT X’s acquisition of PT Y, insider trading activities, new strategic projects, and a 20% increase in dividends, will likely lead to a significant uptick in the IDX over the next year.”
+100 Score: The article is from a top-tier source, published within the last 24 hours, covers multiple Primary and Secondary CTAs, offers in-depth analysis with detailed financial metrics, balanced reporting, comprehensive forward-looking statements, and discusses immediate and long-term market impacts. Example: “PT X’s acquisition of PT Y, insider trading activities, new strategic projects, and a 20% increase in dividends, will likely lead to a significant uptick in the IDX over the next year.
+
+A high quality news article is one that is:
+1. actionable
+2. commercially valuable (request for proposal on a new coal site)
+3. big movement of money (merger and acquisitions, large insider purchase etc)
+4. potential big changes for market cap in the industry
+”
 '''
   
    prompt = f"""

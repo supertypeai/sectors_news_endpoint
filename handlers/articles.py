@@ -9,10 +9,12 @@ from scripts.classifier import (
     get_tickers,
     get_tags_chat,
     get_subsector_chat,
+    load_company_data,
     predict_dimension,
     get_sentiment_chat,
 )
 
+COMPANY_DATA = load_company_data()
 
 articles_module = Blueprint('articles', __name__)
 
@@ -92,9 +94,42 @@ def post_article_from_url():
 @articles_module.route("/evaluate-article", methods=["POST"])
 @require_api_key
 def evaluate_article():
-    article = request.get_json().get("body")
-    return jsonify({"score": str(get_article_score(article))})
-
+    article = request.get_json()
+    body = article.get("body")
+    fp_gate = filter_fp(article)
+    if fp_gate:
+        return jsonify({"score": str(get_article_score(body))})
+    else:
+        return jsonify({"score": str(0)})
+    
+def filter_fp(article):
+    indo_indicator = ['INDONESIA', 'INDONESIAN', 'NUSANTARA', 'JAVA', 'JAKARTA', 'JAWA', 'IHSG', 'IDR', 'PT']
+    
+    response = supabase.table('idx_company_report') \
+        .select('symbol') \
+        .order('market_cap_rank', desc=False) \
+        .limit(300) \
+        .execute()
+    
+    symbols = [record['symbol'] for record in response.data]
+    
+    filter = [*indo_indicator, *symbols]
+    print(filter)
+    
+    title = article['title'].upper().replace(',', '').replace('.', '').split(' ')
+    print(title)
+    
+    condition_1_2 = False
+    for word in title:
+        if word in filter:
+            condition_1_2 = True
+            break
+    
+    cond3 = len(article['tickers']) > 0
+    # print("condition 1 and 2", condition_1_2)
+    # print("condition 3", cond3)
+    result = condition_1_2 | cond3
+    return result
 
 def sanitize_insert(data, generate=True):
     new_article = sanitize_article(data, generate)
@@ -251,7 +286,8 @@ def generate_article(data):
         
         # Check generated tickers
         checked_tickers = []
-        valid_tickers = supabase.rpc("get_tickers").execute().data['data']
+        # valid_tickers = supabase.rpc("get_tickers").execute().data['data']
+        valid_tickers = [COMPANY_DATA[ticker]['symbol'] for ticker in COMPANY_DATA]
         for ticker in tickers:
             if ticker in valid_tickers or ticker + ".JK" in valid_tickers:
                 checked_tickers.append(ticker)
@@ -262,11 +298,7 @@ def generate_article(data):
             sub_sector = [sub_sector_result[0].lower()]
         # If ticker detected, get the company's subsector
         else:
-            result = supabase.rpc("get_companies_subsectors", {
-                "tickers": tickers
-            }).execute()
-
-            sub_sector = [each["sub_sector"] for each in result.data]
+            sub_sector = [COMPANY_DATA[ticker]['sub_sector'] for ticker in tickers if ticker in COMPANY_DATA]
 
         sector = ""
 
