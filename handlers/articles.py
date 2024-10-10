@@ -103,7 +103,7 @@ def evaluate_article():
         return jsonify({"score": str(0)})
     
 def filter_fp(article):
-    indo_indicator = ['INDONESIA', 'INDONESIAN', 'NUSANTARA', 'JAVA', 'JAKARTA', 'JAWA', 'IHSG', 'IDR', 'PT']
+    indo_indicator = ['INDONESIA', 'INDONESIAN', 'NUSANTARA', 'JAVA', 'JAKARTA', 'JAWA', 'IHSG', 'IDR', 'PT', 'IDX', 'TBK']
     
     response = supabase.table('idx_company_report') \
         .select('symbol') \
@@ -119,12 +119,14 @@ def filter_fp(article):
     title = article['title'].upper().replace(',', '').replace('.', '').split(' ')
     # print(title)
     
+    # Indonesia's Indicator filter, or ticker filter (top 300 market cap)
     condition_1_2 = False
     for word in title:
         if word in filter:
             condition_1_2 = True
             break
     
+    # If it has ticker
     cond3 = len(article['tickers']) > 0
     # print("condition 1 and 2", condition_1_2)
     # print("condition 3", cond3)
