@@ -114,10 +114,10 @@ def filter_fp(article):
     symbols = [record['symbol'] for record in response.data]
     
     filter = [*indo_indicator, *symbols]
-    print(filter)
+    # print(filter)
     
     title = article['title'].upper().replace(',', '').replace('.', '').split(' ')
-    print(title)
+    # print(title)
     
     condition_1_2 = False
     for word in title:
