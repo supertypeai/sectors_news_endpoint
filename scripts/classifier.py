@@ -19,10 +19,7 @@ import string
 from llama_index.llms.groq import Groq
 from sklearn.metrics.pairwise import cosine_similarity
 
-# from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-# from langchain_groq import ChatGroq
-# from langchain.agents import create_tool_calling_agent, AgentExecutor
-
+# OPTIONS
 SUBSECTOR_LOAD = True
 TAG_LOAD = True
 
@@ -157,6 +154,7 @@ def load_company_data():
 
 
 # CLASSIFICATION
+# UNUSED
 # @Private method
 def classify_ai(body, category):
     tags = load_tag_data()
@@ -183,12 +181,15 @@ def classify_ai(body, category):
     )
     return response.choices[0].message.content
 
-
+# Function to prompt using Groq's llama 3 model
+# @Private method
 def classify_llama(body, category):
+    # Load data
     tags = load_tag_data()
     company = load_company_data()
     subsectors = load_subsector_data()
 
+    # Prompts
     tags_prompt = f"""
     This is a list of available tags: {', '.join(tag for tag in tags)}
     ONLY USE TAGS THAT ARE MENTIONED HERE, DO NOT ADD TAGS THAT ARE NOT SPECIFIED.
@@ -223,10 +224,13 @@ def classify_llama(body, category):
         "sentiment": f"Classify the sentiment ('bullish', 'bearish', 'neutral') of the article according to the context (actionable by Indonesia's stock investor). Article: {body}. Answer in one word (bullish or bearish or neutral)."
     }
 
+    # Prompt the LLM
     outputs = llm.complete(prompt[category])
+    # Clean output
     outputs = str(outputs).split(",")
     outputs = [out.strip() for out in outputs if out.strip()]
 
+    # Filter output
     if category == "tags":
         outputs = [e for e in outputs if e in tags]
 
@@ -407,14 +411,14 @@ def predict_dimension(title: str, article: str):
     prompt = f"""
     This is a list of news classification: valuation, future, technical, financials, dividend, management, ownership, sustainability
 
-    valuation -> company valuation related news
-    future -> future valuation of the company calculation or prediction related news
-    technical -> technical rating related news
-    financials -> news related to the company financial information
-    dividend -> news related to dividend distribution
-    management -> news related to executive management news or changes
-    ownership -> news related to changes, whether buy or sell of the company stock
-    sustainability -> news related to company Environmental, Social, and Governance (ESG) Risk Assessment.
+    valuation -> Article must contain specific numeric impacts on company valuation metrics (P/E, EBITDA, etc.) or include events that directly affect company market capitalization by at least 2% in a single trading day.
+    future -> Article should contain forward-looking statements with specific timelines or numeric projections, official company guidance updates, or analyst revisions that change growth/earnings estimates by at least 5%.
+    technical -> News must result in abnormal trading volume (2x average) or price movement (±3% in a single session) with clear technical pattern implications or breakthrough of significant support/resistance levels.
+    financials -> Article must discuss changes in financial metrics exceeding 5% year-over-year, unexpected earnings/revenue results, or material changes to the company's financial structure (debt, equity, assets).
+    dividend -> News must relate to dividend policy changes, actual dividend announcements, changes in payout ratios exceeding 3%, or events directly impacting dividend sustainability (cash flow, earnings coverage).
+    management -> Article must cover C-suite or board member changes, significant insider trading activity (>$1M), or major changes in executive compensation/corporate governance policies.
+    ownership -> News must report ownership changes exceeding 1% of outstanding shares, significant institutional investor actions, or material changes in short interest (>20% change).
+    sustainability -> Article must discuss quantifiable ESG impacts, formal sustainability initiative launches with specific goals, or changes in ESG ratings from major rating agencies.
 
     Article title: {title}
     Article content: {article}
