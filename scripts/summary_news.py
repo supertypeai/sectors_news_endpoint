@@ -66,7 +66,7 @@ def summarize_ai(news_text, category):
 
 def summarize_llama(body, category):
     prompt = {
-        "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Also capture the main essence of the news. (Give body summary without intro)",
+        "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Also capture the main essence of the news. Additionally, for every mentioned company name in the format of 'Company Name (TICKER)', write it as it is. (Give body summary without intro)",
         "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
     }
 

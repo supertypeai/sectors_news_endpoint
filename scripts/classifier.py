@@ -39,6 +39,7 @@ llm = Groq(
 
 # DATA LOADING
 # Subsectors data
+# @Private method
 def load_subsector_data():
     if datetime.today().day in [1, 15]:
         response = (
@@ -62,6 +63,7 @@ def load_subsector_data():
 
 
 # Tags data
+# @Private method
 def load_tag_data():
     # This tags is optimized for indonesia financial market
     tags = [
@@ -127,6 +129,7 @@ def load_tag_data():
 
 
 # Ticker and Company name data, renew in date 1, 15 from supabase
+# @Private method
 def load_company_data():
     if datetime.today().day in [1, 15]:
         response = (
@@ -154,32 +157,6 @@ def load_company_data():
 
 
 # CLASSIFICATION
-# UNUSED
-# @Private method
-def classify_ai(body, category):
-    tags = load_tag_data()
-    company = load_company_data()
-    subsectors = load_subsector_data()
-    prompt = {
-        "tags": f"Tags: {','.join(tag for tag in tags)} and article: {body}. Identify 5 most relevant tags to the article, in the format: [tag1, tag2, etc].",
-        "tickers": f"Tickers: {','.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, in the format [ticker1, ticker2, etc].",
-        "subsectors": f"subsectors: {','.join(subsector for subsector in subsectors.keys())} and article: {body}. Identify the subsector of the article, in the format of subsector-name.",
-        "sentiment": f"Classify the sentiment of the article ('bullish' or 'bearish'). Article: {body}. \n Answer in one word (bullish or bearish)",
-    }
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant that classifies characteristics of a news article (tags, subsectors, tickers).",
-            },
-            {"role": "user", "content": prompt[category]},
-        ],
-        max_tokens=150,
-        temperature=0.5,
-    )
-    return response.choices[0].message.content
 
 # Function to prompt using Groq's llama 3 model
 # @Private method
@@ -236,19 +213,27 @@ def classify_llama(body, category):
 
     return outputs
 
-
+# Identify the companies in the article
 # @Private method
 def identify_company_names(body):
-    prompt = f"Identify all the company names mentioned in the following article:\n\n{body}\n\n For each company, for example PT. Antara Business Service (ABS), write it as Antara Business Service only\n\nOnly answer in the format: A, B, etc.\n\n Say nothing else."
+    # print(body)
+    prompt_name = f"""Identify all the company names mentioned in the following article:
+    {body}
+    
+    For each company, for example PT. Antara Business Service (ABS), write it as 'Antara Business Service', 'ABS'
+    
+    Answer in the format: A, B, C, D, etc
+    
+    Say nothing else. (Do not add intro)"""
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant that classifies characteristics of a news article (tags, subsectors, tickers).",
+                "content": "You are a helpful assistant that indentifies companies mentioned in a news article.",
             },
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": prompt_name},
         ],
         max_tokens=150,
         temperature=0.5,
@@ -257,12 +242,17 @@ def identify_company_names(body):
     )
 
     company_names = response.choices[0].message.content.strip().split(",")
+    # print("company names openai", company_names)
     company_names_list = [name.strip() for name in company_names if name.strip()]
-    company_names = str(llm.complete(prompt)).split(",")
-    # print(company_names)
+    # print("company names list", company_names_list)
+    
+    company_names = str(llm.complete(prompt_name)).split(",")
+    # print("company names groq", company_names)
     for name in company_names:
         if name not in company_names_list:
             company_names_list.append(name)
+    # print("final list", company_names_list)
+    
     return company_names_list
 
 
@@ -271,7 +261,7 @@ def match_ticker_codes(company_names, company_data):
     matched_tickers = []
     for name in company_names:
         for ticker, info in company_data.items():
-            if name.lower() in info["name"].lower() or name.lower() in ticker.lower():
+            if name.lower() in info["name"].lower() or name.lower() == ticker.split()[0].lower():
                 if ticker not in matched_tickers:
                     matched_tickers.append(ticker)
     return matched_tickers
@@ -406,7 +396,7 @@ def get_subsector_embeddings(text):
 
     return most_relevant_subsector
 
-
+# @Public method
 def predict_dimension(title: str, article: str):
     prompt = f"""
     This is a list of news classification: valuation, future, technical, financials, dividend, management, ownership, sustainability
