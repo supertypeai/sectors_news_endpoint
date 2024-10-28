@@ -181,7 +181,7 @@ def sanitize_article(data, generate=True):
     timestamp_str = data.get("timestamp").strip()
     timestamp_str = timestamp_str.replace("T", " ")
     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-    score = int(data.get("score").strip()) if data.get("score") else None
+    score = int(data.get("score")) if data.get("score") else None
 
     sub_sector = []
 
