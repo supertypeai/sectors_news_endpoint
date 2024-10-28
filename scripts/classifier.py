@@ -220,9 +220,11 @@ def identify_company_names(body):
     prompt_name = f"""Identify all the company names mentioned in the following article:
     {body}
     
-    For each company, for example PT. Antara Business Service (ABS), write it as 'Antara Business Service', 'ABS'
+    For each company, for example PT. Antara Business Service (ABS), write it as 'Antara Business Service'
     
-    Answer in the format: A, B, C, D, etc
+    Answer in the format: 
+    
+    Company A, Company B, Company C, Company D, etc
     
     Say nothing else. (Do not add intro)"""
 
@@ -251,7 +253,7 @@ def identify_company_names(body):
     for name in company_names:
         if name not in company_names_list:
             company_names_list.append(name)
-    # print("final list", company_names_list)
+    print("final list", company_names_list)
     
     return company_names_list
 

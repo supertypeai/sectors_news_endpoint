@@ -181,6 +181,7 @@ def sanitize_article(data, generate=True):
     timestamp_str = data.get("timestamp").strip()
     timestamp_str = timestamp_str.replace("T", " ")
     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+    score = int(data.get("score").strip()) if data.get("score") else None
 
     sub_sector = []
 
@@ -245,6 +246,7 @@ def sanitize_article(data, generate=True):
         "tags": tags,
         "tickers": tickers,
         "dimension": dimension,
+        "score": score
     }
 
     if generate:
@@ -275,6 +277,7 @@ def generate_article(data):
         "tags": [],
         "tickers": [],
         "dimension": None,
+        "score": None
     }
 
     title, body = summarize_news(source)
@@ -317,6 +320,7 @@ def generate_article(data):
         new_article["tags"] = tags
         new_article["tickers"] = tickers
         new_article["dimension"] = predict_dimension(title, body)
+        new_article["score"] = int(get_article_score(body))
 
         return new_article
     else:
