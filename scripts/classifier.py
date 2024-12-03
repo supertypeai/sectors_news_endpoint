@@ -147,8 +147,18 @@ def load_company_data():
                 "sub_sector": row["sub_sector"],
             }
 
-        with open("./data/companies.json", "w") as f:
-            f.write(json.dumps(company))
+        # with open("./data/companies.json", "w") as f:
+        #     f.write(json.dumps(company))
+            
+        # with open('./data/companies.json', 'r') as f:
+        #     data = json.load(f)
+        
+        for i, attr in enumerate(company):
+            company[attr]['sub_sector'] = company[attr]['sub_sector'].replace('&', '').replace(',', '').replace('  ', ' ').replace(' ', '-').lower()
+            
+        with open('./data/companies.json', 'w') as f:
+            json.dump(company, f, indent=2)
+            
         return company
     else:
         with open("./data/companies.json", "r") as f:
