@@ -6,9 +6,22 @@ from datetime import datetime
 
 from scripts.classifier import get_sentiment_chat, get_tags_chat
 from scripts.summary_filings import summarize_filing
+import re
 
 with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
+    
+def extract_datetime(text):
+    # Define the regex pattern to match the date and time
+    pattern = r'\d{2}-\d{2}-\d{4} \d{2}:\d{2}(?::\d{2})?'
+    
+    # Search for the pattern in the string
+    match = re.search(pattern, text)
+    
+    # If a match is found, return it
+    if match:
+        return match.group(0)
+    return ""
 
 def extract_info(text):
   lines = text.split('\n')
@@ -47,6 +60,8 @@ def extract_info(text):
       article_info["purpose"] = line.split()[2:]
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
       date_time_str = ' '.join(line.split()[3:])
+      date_time_str = extract_datetime(date_time_str)
+      print(date_time_str)
       try:
         parsed_date = datetime.strptime(date_time_str, "%Y %d %m")
         formatted_date = parsed_date.strftime("%Y-%m-%d")
