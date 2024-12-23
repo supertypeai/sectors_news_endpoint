@@ -37,6 +37,7 @@ def extract_info(text):
     "shareholding_after": "",
     "purpose": "",
     "date_time": "",
+    "price": 0
   }
 
   for i, line in enumerate(lines):
@@ -68,6 +69,9 @@ def extract_info(text):
         article_info["date_time"] = formatted_date
       except ValueError:
         article_info["date_time"] = date_time_str
+    if "Jenis Transaksi Harga Transaksi" in line:
+      # Get the price of the transaction
+      article_info["price"] = lines[i+2].split(" ")[1]
   return article_info
 
 def generate_article_filings(pdf_url, sub_sector, holder_type, data):
@@ -87,7 +91,9 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "holding_after": 0,
     "amount_transaction": 0,
     "holder_name": "",
-    "purpose": ""
+    "purpose": "",
+    "price": 0,
+    "transaction_value": 0, # price * amount
   }
 
   pdf_text = data
@@ -105,6 +111,8 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']
   article['purpose'] = article_info['purpose']
+  article['price'] = int("".join(article_info['price'].split(".")))
+  article['transaction_value'] = article['amount_transaction'] * article['price']
 
   # print(f"[ORIGINAL FILINGS ARTICLE]")
   # for key, value in article.items():
