@@ -113,7 +113,7 @@ def sanitize_filing(data):
     transaction_type = "buy" if holding_before < holding_after else "sell"
     amount_transaction = abs(holding_before - holding_after)
     price = data.get("price")
-    transaction_value = price * amount_transaction
+    # transaction_value = price * amount_transaction
 
     ticker_list = ticker.split(".")
     if len(ticker_list) > 1:
@@ -142,7 +142,7 @@ def sanitize_filing(data):
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
         "price": price,
-        "transaction_value": transaction_value 
+        # "transaction_value": transaction_value 
     }
     new_title, new_body = summarize_filing(new_article)
 
@@ -186,7 +186,7 @@ def sanitize_filing_article(data, generate=True):
     amount_transaction = abs(holding_before - holding_after)
     holder_name = data.get("holder_name")
     price = data.get("price")
-    transaction_value = price * amount_transaction
+    # transaction_value = price * amount_transaction
 
     new_article = {
         "title": title,
@@ -204,7 +204,7 @@ def sanitize_filing_article(data, generate=True):
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
         "price": price,
-        "transaction_value": transaction_value
+        # "transaction_value": transaction_value
     }
 
     if generate:
