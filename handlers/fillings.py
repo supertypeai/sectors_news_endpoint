@@ -98,7 +98,7 @@ def sanitize_filing(data):
     holder_name = data.get("holder_name").strip()
     source = data.get("source").strip()
     ticker = data.get("ticker").strip() if data.get("ticker") else None
-    category = data.get("category").strip()
+    # category = data.get("category").strip()
     control_status = data.get("control_status").strip()
     holding_before = data.get("holding_before")
     holding_after = data.get("holding_after")
@@ -107,7 +107,7 @@ def sanitize_filing(data):
         if data.get("sub_sector")
         else data.get("subsector").strip()
     )
-    purpose = data.get("purpose").strip()
+    # purpose = data.get("purpose").strip()
     date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
     holder_type = data.get("holder_type")
     transaction_type = "buy" if holding_before < holding_after else "sell"
@@ -128,7 +128,7 @@ def sanitize_filing(data):
 
     new_article = {
         "title": f"Informasi insider trading {holder_name} dalam {company_name}",
-        "body": f"{document_number} - {date_time} - Kategori {category} - {holder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
+        "body": f"{document_number} - {date_time} - {holder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
         "source": source,
         "timestamp": str(date_time),
         "sector": sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
