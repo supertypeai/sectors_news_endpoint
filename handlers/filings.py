@@ -190,9 +190,15 @@ def sanitize_filing_article(data, generate=True):
     transaction_type = "buy" if holding_before < holding_after else "sell"
     amount_transaction = abs(holding_before - holding_after)
     holder_name = data.get("holder_name")
-    price = data.get("price")
     price_transaction = data.get("price_transaction")
-    transaction_value = data.get("transaction_value")
+    
+    sum_price_transaction = 0
+    sum_transaction = 0
+    for i in range(len(price_transaction['prices'])):
+        sum_price_transaction += price_transaction['prices'][i] * price_transaction['amount_transacted'][i]
+        sum_transaction += price_transaction['amount_transacted'][i]
+    price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
+    transaction_value = sum_price_transaction
 
     new_article = {
         "title": title,
