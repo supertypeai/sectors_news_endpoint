@@ -12,12 +12,17 @@ from scripts.classifier import (
 )
 import os
 
-fillings_module = Blueprint('fillings', __name__)
+filings_module = Blueprint('filings', __name__)
 
 
-@fillings_module.route("/pdf", methods=["POST"])
+@filings_module.route("/pdf", methods=["POST"])
 @require_api_key
 def add_pdf_article():
+    """
+    @brief Processes a PDF file with the IDX Format.
+
+    @return JSON response of the processed PDF.
+    """
     if "file" not in request.files:
         return jsonify({"status": "error", "message": "No file part"}), 400
 
@@ -51,14 +56,14 @@ def add_pdf_article():
         return jsonify({"status": "error", "message": "Invalid file type"}), 400
 
 
-@fillings_module.route("/pdf/post", methods=["POST"])
+@filings_module.route("/pdf/post", methods=["POST"])
 def add_filing_from_pdf():
     input_data = request.get_json()
     result = insert_insider_trading_supabase(input_data, format=False)
     return jsonify(result), result.get("status_code")
 
 
-@fillings_module.route("/insider-trading", methods=["POST"])
+@filings_module.route("/insider-trading", methods=["POST"])
 @require_api_key
 def add_insider_trading():
     input_data = request.get_json()
@@ -66,14 +71,14 @@ def add_insider_trading():
     return jsonify(result), result.get("status_code")
 
 
-@fillings_module.route("/insider-trading", methods=["GET"])
+@filings_module.route("/insider-trading", methods=["GET"])
 @require_api_key
 def get_insider_trading():
     response = supabase.table("idx_filings").select("*").execute()
     return response.data
 
 
-@fillings_module.route("/insider-trading", methods=["DELETE"])
+@filings_module.route("/insider-trading", methods=["DELETE"])
 @require_api_key
 def delete_insider_trading():
     input_data = request.get_json()
@@ -82,7 +87,7 @@ def delete_insider_trading():
     return jsonify({"status": "success", "message": "Deleted"}), 200
 
 
-@fillings_module.route("/insider-trading", methods=["PATCH"])
+@filings_module.route("/insider-trading", methods=["PATCH"])
 @require_api_key
 def update_insider_trading():
     input_data = request.get_json()
@@ -186,7 +191,8 @@ def sanitize_filing_article(data, generate=True):
     amount_transaction = abs(holding_before - holding_after)
     holder_name = data.get("holder_name")
     price = data.get("price")
-    # transaction_value = price * amount_transaction
+    price_transaction = data.get("price_transaction")
+    transaction_value = data.get("transaction_value")
 
     new_article = {
         "title": title,
@@ -204,7 +210,8 @@ def sanitize_filing_article(data, generate=True):
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
         "price": price,
-        # "transaction_value": transaction_value
+        "transaction_value": transaction_value,
+        "price_transaction": price_transaction
     }
 
     if generate:
@@ -215,6 +222,9 @@ def sanitize_filing_article(data, generate=True):
 
         if len(new_title) > 0:
             new_article["title"] = new_title
+
+    if "purpose" in new_article:
+        del new_article["purpose"]
 
     return new_article
 

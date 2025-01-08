@@ -12,16 +12,28 @@ with open('./data/sectors_data.json', 'r') as f:
     sectors_data = json.load(f)
     
 def extract_datetime(text):
-    # Define the regex pattern to match the date and time
-    pattern = r'\d{2}-\d{2}-\d{4} \d{2}:\d{2}(?::\d{2})?'
-    
-    # Search for the pattern in the string
-    match = re.search(pattern, text)
-    
-    # If a match is found, return it
-    if match:
-        return match.group(0)
-    return ""
+  # Define the regex pattern to match the date and time
+  pattern = r'\d{2}-\d{2}-\d{4} \d{2}:\d{2}(?::\d{2})?'
+  
+  # Search for the pattern in the string
+  match = re.search(pattern, text)
+  
+  # If a match is found, return it
+  if match:
+      return match.group(0)
+  return ""
+  
+def extract_number(input_string):
+  """
+  Extracts the numeric part from the input string.
+
+  @param input_string String containing the number and other characters.
+
+  @return Integer representing the extracted number.
+  """
+  match = re.search(r'\d+', input_string.replace('.', ''))
+  return int(match.group()) if match else None
+
 
 def extract_info(text):
   lines = text.split('\n')
@@ -37,7 +49,11 @@ def extract_info(text):
     "shareholding_after": "",
     "purpose": "",
     "date_time": "",
-    "price": 0
+    "price": 0,
+    "price_transaction": {
+      "prices": [],
+      "amount_transacted": []
+    }
   }
 
   for i, line in enumerate(lines):
@@ -58,7 +74,7 @@ def extract_info(text):
     if "Jumlah Saham Setelah Transaksi" in line:
       article_info["shareholding_after"] = line.split()[-1]
     if "Tujuan Transaksi" in line:
-      article_info["purpose"] = line.split()[2:]
+      article_info["purpose"] = " ".join(line.split()[2:])
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
       date_time_str = ' '.join(line.split()[3:])
       date_time_str = extract_datetime(date_time_str)
@@ -71,7 +87,17 @@ def extract_info(text):
         article_info["date_time"] = date_time_str
     if "Jenis Transaksi Harga Transaksi" in line:
       # Get the price of the transaction
-      article_info["price"] = lines[i+2].split(" ")[1]
+      article_info["price"] = extract_number(lines[i+2].split(" ")[1])
+      # Get all the price and number of transacted shares
+      price_transaction = []
+      amount_transacted = []
+      for j in range(i+2, len(lines)):
+        if not (lines[j].split(" ")[0] == "Pembelian" or lines[j].split(" ")[0] == "Penjualan"):
+          break
+        price_transaction.append(extract_number(lines[j].split(" ")[1]))
+        amount_transacted.append(extract_number(lines[j].split(" ")[5]))
+      article_info["price_transaction"]["prices"] = price_transaction
+      article_info["price_transaction"]["amount_transacted"] = amount_transacted
   return article_info
 
 def generate_article_filings(pdf_url, sub_sector, holder_type, data):
@@ -94,14 +120,21 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "purpose": "",
     "price": 0,
     "transaction_value": 0, # price * amount
+    "price_transaction": {
+      "prices": [],
+      "amount_transacted": []
+    }
   }
 
   pdf_text = data
 
   article_info = extract_info(pdf_text)
+  print(article_info)
+  # with open('./extracted_article.json', 'w') as f:
+  #   json.dump(article_info, f, indent=2)
 
   article['title'] = f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
-  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - {article_info['holder_name']} dengan status kontrol {article_info['control_status']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
+  article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - Transaksi {article_info['holder_name']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
   article['tickers'] = [article_info['ticker'].upper() + ".JK"]
   article['timestamp'] = article_info['date_time'] + ":00"
   article['timestamp']  = datetime.strptime(article['timestamp'], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
@@ -111,8 +144,16 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']
   article['purpose'] = article_info['purpose']
-  article['price'] = int("".join(article_info['price'].split(".")))
-  article['transaction_value'] = article['amount_transaction'] * article['price']
+  article['price_transaction'] = article_info['price_transaction']
+  
+  sum_price_transaction = 0
+  sum_transaction = 0
+  for i in range(len(article['price_transaction']['prices'])):
+    sum_price_transaction += article['price_transaction']['prices'][i] * article['price_transaction']['amount_transacted'][i]
+    sum_transaction += article['price_transaction']['amount_transacted'][i]
+  article['price'] = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
+  article['transaction_value'] = sum_price_transaction
+  
 
   # print(f"[ORIGINAL FILINGS ARTICLE]")
   # for key, value in article.items():
@@ -132,6 +173,12 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   # print(f"[GENERATED FILINGS ARTICLE]")
   # for key, value in article.items():
   #   print(f"{key}: {value}")
+  
+  # with open('./generated.json', 'w') as f:
+  #   json.dump(article, f, indent=2)
+    
+  if "purpose" in article:
+    del article["purpose"]
   return article
 
 def get_first_word(s):
