@@ -4,6 +4,7 @@ Script to generate an article from pdf reader for filings
 import json
 from datetime import datetime
 
+from model.price_transaction import PriceTransaction
 from scripts.classifier import get_sentiment_chat, get_tags_chat
 from scripts.summary_filings import summarize_filing
 import re
@@ -119,7 +120,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "holder_name": "",
     "purpose": "",
     "price": 0,
-    "transaction_value": 0, # price * amount
+    "transaction_value": 0,
     "price_transaction": {
       "prices": [],
       "amount_transacted": []
@@ -130,8 +131,7 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
 
   article_info = extract_info(pdf_text)
   print(article_info)
-  # with open('./extracted_article.json', 'w') as f:
-  #   json.dump(article_info, f, indent=2)
+
 
   article['title'] = f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
   article['body'] = f"{article_info['document_number']} - {article_info['date_time']} - Kategori {article_info['category']} - Transaksi {article_info['holder_name']} dalam saham {article_info['company_name']} berubah dari {article_info['shareholding_before']} menjadi {article_info['shareholding_after']}"
@@ -146,13 +146,8 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
   article['purpose'] = article_info['purpose']
   article['price_transaction'] = article_info['price_transaction']
   
-  sum_price_transaction = 0
-  sum_transaction = 0
-  for i in range(len(article['price_transaction']['prices'])):
-    sum_price_transaction += article['price_transaction']['prices'][i] * article['price_transaction']['amount_transacted'][i]
-    sum_transaction += article['price_transaction']['amount_transacted'][i]
-  article['price'] = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
-  article['transaction_value'] = sum_price_transaction
+  price_transaction = PriceTransaction(amount_transacted=article['price_transaction']['amount_transacted'], prices=article['price_transaction']['prices'])
+  article['price'], article['transaction_value'] = price_transaction.get_price_transaction_value()
   
 
   # print(f"[ORIGINAL FILINGS ARTICLE]")

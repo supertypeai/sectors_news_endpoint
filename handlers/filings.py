@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from middleware.api_key import require_api_key
 from database import supabase, sectors_data
 from datetime import datetime
+from model.price_transaction import PriceTransaction
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
 from scripts.summary_filings import summarize_filing
@@ -58,6 +59,11 @@ def add_pdf_article():
 
 @filings_module.route("/pdf/post", methods=["POST"])
 def add_filing_from_pdf():
+    """
+    @brief Insert filings from previous PDF inference.
+
+    @return JSON response indicating success or failure.
+    """
     input_data = request.get_json()
     result = insert_insider_trading_supabase(input_data, format=False)
     return jsonify(result), result.get("status_code")
@@ -66,6 +72,11 @@ def add_filing_from_pdf():
 @filings_module.route("/insider-trading", methods=["POST"])
 @require_api_key
 def add_insider_trading():
+    """
+    @brief Adds insider trading data by processing the input JSON data.
+
+    @return JSON response indicating success or failure.
+    """
     input_data = request.get_json()
     result = insert_insider_trading_supabase(input_data)
     return jsonify(result), result.get("status_code")
@@ -74,6 +85,11 @@ def add_insider_trading():
 @filings_module.route("/insider-trading", methods=["GET"])
 @require_api_key
 def get_insider_trading():
+    """
+    @brief Retrieves insider trading data from the database.
+
+    @return JSON response containing the insider trading data.
+    """
     response = supabase.table("idx_filings").select("*").execute()
     return response.data
 
@@ -81,6 +97,11 @@ def get_insider_trading():
 @filings_module.route("/insider-trading", methods=["DELETE"])
 @require_api_key
 def delete_insider_trading():
+    """
+    @brief Deletes insider trading data based on the provided ID list.
+
+    @return JSON response indicating success or failure.
+    """
     input_data = request.get_json()
     id_list = input_data.get("id_list")
     supabase.table("idx_filings").delete().in_("id", id_list).execute()
@@ -90,22 +111,35 @@ def delete_insider_trading():
 @filings_module.route("/insider-trading", methods=["PATCH"])
 @require_api_key
 def update_insider_trading():
+    """
+    @brief Updates insider trading data based on the provided input JSON data.
+
+    @return JSON response indicating success or failure.
+    """
     input_data = request.get_json()
     result = update_insider_trading_supabase(input_data)
     return jsonify(result), result.get("status_code")
 
 
 def sanitize_filing(data):
+    """
+    @brief Sanitizes the filing data and generates a new article dictionary.
+
+    @param data Dictionary containing the filing data.
+
+    @return Dictionary containing the sanitized article data.
+    """
     document_number = (
-        data.get("document_number").strip() if data.get("nomor_surat") else None
+        data.get("document_number").strip() if data.get("document_number") else ""
     )
-    company_name = data.get("company_name").strip()
-    holder_name = data.get("holder_name").strip()
+    company_name = data.get("company_name").strip() if data.get("company_name") else ""
+    holder_name = data.get("holder_name").strip() if data.get("holder_name") else data.get("shareholder_name").strip() if data.get("shareholder_name") else ""
     source = data.get("source").strip()
-    ticker = data.get("ticker").strip() if data.get("ticker") else None
+    ticker = data.get("ticker").strip() if data.get("ticker") else ''
     # category = data.get("category").strip()
-    control_status = data.get("control_status").strip()
+    control_status = data.get("control_status").strip() if data.get("control_status") else ""
     holding_before = data.get("holding_before")
+    print("test4")
     holding_after = data.get("holding_after")
     sub_sector = (
         data.get("sub_sector").strip()
@@ -117,8 +151,8 @@ def sanitize_filing(data):
     holder_type = data.get("holder_type")
     transaction_type = "buy" if holding_before < holding_after else "sell"
     amount_transaction = abs(holding_before - holding_after)
-    price = data.get("price")
-    # transaction_value = price * amount_transaction
+    price_transaction = data.get("price_transaction")
+    price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
 
     ticker_list = ticker.split(".")
     if len(ticker_list) > 1:
@@ -146,8 +180,9 @@ def sanitize_filing(data):
         "holding_after": holding_after,
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
+        "price_transaction": price_transaction,
         "price": price,
-        # "transaction_value": transaction_value 
+        "transaction_value": transaction_value 
     }
     new_title, new_body = summarize_filing(new_article)
 
@@ -170,6 +205,14 @@ def sanitize_filing(data):
 
 
 def sanitize_filing_article(data, generate=True):
+    """
+    @brief Sanitizes the filing article data and generates a new article dictionary.
+
+    @param data Dictionary containing the filing article data.
+    @param generate Boolean indicating whether to generate a new title and body.
+
+    @return Dictionary containing the sanitized article data.
+    """
     title = data.get("title").strip() if data.get("title") else None
     body = data.get("body").strip() if data.get("body") else None
     source = data.get("source").strip()
@@ -192,13 +235,7 @@ def sanitize_filing_article(data, generate=True):
     holder_name = data.get("holder_name")
     price_transaction = data.get("price_transaction")
     
-    sum_price_transaction = 0
-    sum_transaction = 0
-    for i in range(len(price_transaction['prices'])):
-        sum_price_transaction += price_transaction['prices'][i] * price_transaction['amount_transacted'][i]
-        sum_transaction += price_transaction['amount_transacted'][i]
-    price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
-    transaction_value = sum_price_transaction
+    price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
 
     new_article = {
         "title": title,
@@ -236,6 +273,14 @@ def sanitize_filing_article(data, generate=True):
 
 
 def insert_insider_trading_supabase(data, format=True):
+    """
+    @brief Inserts insider trading data into the Supabase database.
+
+    @param data Dictionary containing the insider trading data.
+    @param format Boolean indicating whether to format the data.
+
+    @return Dictionary containing the status and inserted record ID.
+    """
     # format : needs formatting
     if format:
         new_article = sanitize_filing(data)
@@ -247,6 +292,13 @@ def insert_insider_trading_supabase(data, format=True):
 
 
 def update_insider_trading_supabase(data):
+    """
+    @brief Updates insider trading data in the Supabase database.
+
+    @param data Dictionary containing the insider trading data.
+
+    @return Dictionary containing the status and updated record data.
+    """
     new_article = sanitize_filing_article(data, generate=False)
     record_id = data.get("id")
 
@@ -268,6 +320,14 @@ def update_insider_trading_supabase(data):
 
 
 def save_file(file, upload_folder):
+    """
+    @brief Saves the uploaded file to the specified upload folder.
+
+    @param file File object to be saved.
+    @param upload_folder String specifying the upload folder path.
+
+    @return String containing the file path of the saved file.
+    """
     file_path = os.path.join(upload_folder, file.filename)
     file.save(file_path)
     return file_path
