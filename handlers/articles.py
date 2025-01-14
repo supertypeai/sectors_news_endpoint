@@ -23,6 +23,15 @@ articles_module = Blueprint('articles', __name__)
 @articles_module.route("/articles", methods=["POST"])
 @require_api_key
 def add_article():
+    """
+    @API-function
+    @brief Insert news article.
+    
+    @request-args
+    news-data: JSON
+
+    @return JSON response of insertion status.
+    """
     input_data = request.get_json()
     result = sanitize_insert(input_data)
     return jsonify(result), result.get("status_code")
@@ -31,6 +40,15 @@ def add_article():
 @articles_module.route("/articles/list", methods=["POST"])
 @require_api_key
 def add_articles():
+    """
+    @API-function
+    @brief Insert news article in list form.
+    
+    @request-args
+    news-data: List of JSON
+
+    @return List of JSON response of insertion status.
+    """
     input_data = request.get_json()
     result_list = []
     for data in input_data:
@@ -41,6 +59,17 @@ def add_articles():
 
 @articles_module.route("/articles", methods=["GET"])
 def get_articles():
+    """
+    @API-function
+    @brief Get news articles.
+    
+    @request-args
+    subsector: str, optional
+    sub_sector: str, optional
+    id: int, optional
+    
+    @return JSON of response data.
+    """
     subsector = request.args.get("subsector")
     if not subsector:
         request.args.get("sub_sector")
@@ -61,6 +90,16 @@ def get_articles():
 @articles_module.route("/articles", methods=["DELETE"])
 @require_api_key
 def delete_article():
+    """
+    @API-function
+    @brief Delete news article.
+    
+    @request-args
+    input-data: JSON
+    id: list of int
+        
+    @return JSON response of deletion status.
+    """
     input_data = request.get_json()
     id_list = input_data.get("id_list")
     supabase.table("idx_news").delete().in_("id", id_list).execute()
@@ -71,6 +110,15 @@ def delete_article():
 @articles_module.route("/articles", methods=["PATCH"])
 @require_api_key
 def update_article():
+    """
+    @API-function
+    @brief Update news articles.
+    
+    @request-args
+    news-data: JSON
+    
+    @return JSON response of update status.
+    """
     input_data = request.get_json()
     result = sanitize_update(input_data)
     return jsonify(result), result.get("status_code")
@@ -79,6 +127,15 @@ def update_article():
 @articles_module.route("/url-article", methods=["POST"])
 @require_api_key
 def get_article_from_url():
+    """
+    @API-function
+    @brief Inference news articles from URL.
+    
+    @request-args
+    input-data: JSON 
+    
+    @return JSON response of the inferenced article.
+    """
     input_data = request.get_json()
     data = generate_article(input_data)
     return data, 200
@@ -87,6 +144,15 @@ def get_article_from_url():
 @articles_module.route("/url-article/post", methods=["POST"])
 @require_api_key
 def post_article_from_url():
+    """
+    @API-function
+    @brief Post inferenced news articles.
+    
+    @request-args
+    news-data: JSON
+    
+    @return JSON response of insertion status.
+    """
     input_data = request.get_json()
     result = sanitize_insert(input_data, generate=False)
     return jsonify(result), result.get("status_code")
@@ -95,6 +161,15 @@ def post_article_from_url():
 @articles_module.route("/evaluate-article", methods=["POST"])
 @require_api_key
 def evaluate_article():
+    """
+    @API-function
+    @brief Get score of news article.
+    
+    @request-args
+    article: JSON
+    
+    @return JSON response of score.
+    """
     article = request.get_json()
     body = article.get("body")
     fp_gate = filter_fp(article)
@@ -104,6 +179,14 @@ def evaluate_article():
         return jsonify({"score": str(0)})
     
 def filter_fp(article):
+    """
+    @helper-function
+    @brief Filter false-positives for news.
+    
+    @param article Article to be filtered.
+    
+    @return JSON response of insertion status.
+    """
     # article title
     body = article['body'].upper().replace(',', ' ').replace('.', ' ').replace('-', ' ').replace("'", ' ').split(' ')
     title = article['title'].upper().replace(',', ' ').replace('.', ' ').replace('-', ' ').replace("'", ' ').split(' ')
@@ -135,6 +218,14 @@ def filter_fp(article):
     return result
 
 def sanitize_insert(data, generate=True):
+    """
+    @database-function
+    @brief Insert news articles.
+    
+    @param data Article to be inserted.
+    
+    @return JSON response of insertion status.
+    """
     new_article = sanitize_article(data, generate)
     # Redundancy check, ignore article that has the same URL
     all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.get("source")).execute()
@@ -157,6 +248,14 @@ def sanitize_insert(data, generate=True):
 
 
 def sanitize_update(data):
+    """
+    @database-function
+    @brief Update news articles.
+    
+    @param data Updated article.
+    
+    @return JSON response of update status.
+    """
     new_article = sanitize_article(data, generate=False)
     record_id = data.get("id")
 
@@ -174,6 +273,14 @@ def sanitize_update(data):
     }
 
 def sanitize_article(data, generate=True):
+    """
+    @helper-function
+    @brief Sanitation of article data.
+    
+    @param data Article to be sanitated.
+    
+    @return Sanitized article in article format.
+    """
     # Sanitization v1.0
     title = data.get("title").strip() if data.get("title") else None
     body = data.get("body").strip() if data.get("body") else None
@@ -281,7 +388,7 @@ def generate_article(data):
     }
 
     title, body = summarize_news(source)
-    # print(title, body)
+    
     if len(body) > 0:
         # Generate the metadata for the new article
         tickers = get_tickers(body)
@@ -292,7 +399,6 @@ def generate_article(data):
         
         # Check generated tickers
         checked_tickers = []
-        # valid_tickers = supabase.rpc("get_tickers").execute().data['data']
         valid_tickers = [COMPANY_DATA[ticker]['symbol'] for ticker in COMPANY_DATA]
         for ticker in tickers:
             if ticker in valid_tickers or ticker + ".JK" in valid_tickers:
