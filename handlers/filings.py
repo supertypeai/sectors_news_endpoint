@@ -20,6 +20,7 @@ filings_module = Blueprint('filings', __name__)
 @require_api_key
 def add_pdf_article():
     """
+    @API-function
     @brief Processes a PDF file with the IDX Format.
 
     @return JSON response of the processed PDF.
@@ -60,6 +61,7 @@ def add_pdf_article():
 @filings_module.route("/pdf/post", methods=["POST"])
 def add_filing_from_pdf():
     """
+    @API-function
     @brief Insert filings from previous PDF inference.
 
     @return JSON response indicating success or failure.
@@ -73,6 +75,7 @@ def add_filing_from_pdf():
 @require_api_key
 def add_insider_trading():
     """
+    @API-function
     @brief Adds insider trading data by processing the input JSON data.
 
     @return JSON response indicating success or failure.
@@ -86,6 +89,7 @@ def add_insider_trading():
 @require_api_key
 def get_insider_trading():
     """
+    @API-function
     @brief Retrieves insider trading data from the database.
 
     @return JSON response containing the insider trading data.
@@ -98,6 +102,7 @@ def get_insider_trading():
 @require_api_key
 def delete_insider_trading():
     """
+    @API-function
     @brief Deletes insider trading data based on the provided ID list.
 
     @return JSON response indicating success or failure.
@@ -112,6 +117,7 @@ def delete_insider_trading():
 @require_api_key
 def update_insider_trading():
     """
+    @API-function
     @brief Updates insider trading data based on the provided input JSON data.
 
     @return JSON response indicating success or failure.
@@ -123,6 +129,7 @@ def update_insider_trading():
 
 def sanitize_filing(data):
     """
+    @middleware-function
     @brief Sanitizes the filing data and generates a new article dictionary.
 
     @param data Dictionary containing the filing data.
@@ -205,6 +212,7 @@ def sanitize_filing(data):
 
 def sanitize_filing_article(data, generate=True):
     """
+    @middleware-function
     @brief Sanitizes the filing article data and generates a new article dictionary.
 
     @param data Dictionary containing the filing article data.
@@ -273,6 +281,7 @@ def sanitize_filing_article(data, generate=True):
 
 def insert_insider_trading_supabase(data, format=True):
     """
+    @database-function
     @brief Inserts insider trading data into the Supabase database.
 
     @param data Dictionary containing the insider trading data.
@@ -292,6 +301,7 @@ def insert_insider_trading_supabase(data, format=True):
 
 def update_insider_trading_supabase(data):
     """
+    @database-function
     @brief Updates insider trading data in the Supabase database.
 
     @param data Dictionary containing the insider trading data.
@@ -320,6 +330,7 @@ def update_insider_trading_supabase(data):
 
 def save_file(file, upload_folder):
     """
+    @helper-function
     @brief Saves the uploaded file to the specified upload folder.
 
     @param file File object to be saved.
