@@ -139,7 +139,6 @@ def sanitize_filing(data):
     # category = data.get("category").strip()
     control_status = data.get("control_status").strip() if data.get("control_status") else ""
     holding_before = data.get("holding_before")
-    print("test4")
     holding_after = data.get("holding_after")
     sub_sector = (
         data.get("sub_sector").strip()
@@ -313,7 +312,7 @@ def update_insider_trading_supabase(data):
     )
 
     return {
-        "message": "Record updated successfully from table ifx_filings",
+        "message": "Record updated successfully from table idx_filings",
         "data": response.data,
         "status_code": 200,
     }
