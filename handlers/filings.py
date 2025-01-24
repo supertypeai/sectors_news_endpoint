@@ -178,7 +178,7 @@ def sanitize_filing(data):
         "timestamp": str(date_time),
         "sector": sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
         "sub_sector": sub_sector,
-        "tags": ["insider-trading"],
+        "tags": ["insider-trading", "IDX", "Ownership Changes"],
         "tickers": [ticker],
         "transaction_type": transaction_type,
         "holder_type": holder_type,
@@ -195,10 +195,11 @@ def sanitize_filing(data):
     if len(new_body) > 0:
         new_article["body"] = new_body
         tickers = get_tickers(new_body)
-        tags = get_tags_chat(new_body)
-        sentiment = get_sentiment_chat(new_body)
+        # tags = get_tags_chat(new_body)
+        # sentiment = get_sentiment_chat(new_body)
         # sub_sector = get_subsector_chat(new_body)
-        tags.append(sentiment[0])
+        # tags.append(sentiment[0])
+        tags = get_tags(new_article)
         new_article["tags"].append(tags)
         for ticker in tickers:
             if ticker not in new_article["tickers"]:
@@ -327,6 +328,23 @@ def update_insider_trading_supabase(data):
         "status_code": 200,
     }
 
+def get_tags(filing):
+    """
+    @helper-function
+    @brief Extracts and add tags from the filing data.
+
+    @param filing Dictionary containing the filing data.
+
+    @return List containing the extracted tags.
+    """
+    tags = []
+    tags.append("insider-trading")
+    tags.append("IDX")
+    tags.append("Ownership Changes")
+    tags.append("Bullish" if filing["transaction_type"].upper() == "BUY" else "Bearish")
+    
+    # Purpose is skipped
+    return tags
 
 def save_file(file, upload_folder):
     """
