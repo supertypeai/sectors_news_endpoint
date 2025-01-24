@@ -3,6 +3,8 @@ Script to classify the tags, subsector, tickers, and sentiment of the news aarti
 '''
 import dotenv
 
+from model.llm_collection import LLMCollection
+
 dotenv.load_dotenv()
 
 import json
@@ -16,7 +18,6 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import string
 
-from llama_index.llms.groq import Groq
 from sklearn.metrics.pairwise import cosine_similarity
 
 # OPTIONS
@@ -31,11 +32,8 @@ supabase: Client = create_client(os.getenv("SUPABASE_URL"), SUPABASE_KEY)
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
 )
-llm = Groq(
-    model="llama3-70b-8192",
-    api_key=os.getenv("GROQ_API_KEY"),
-)
 
+llmcollection = LLMCollection()
 
 # DATA LOADING
 # Subsectors data
@@ -212,16 +210,22 @@ def classify_llama(body, category):
     }
 
     # Prompt the LLM
-    outputs = llm.complete(prompt[category])
-    # Clean output
-    outputs = str(outputs).split(",")
-    outputs = [out.strip() for out in outputs if out.strip()]
+    for llm in llmcollection.get_llms():
+        try:
+            outputs = llm.complete(prompt[category])
+            # Clean output
+            outputs = str(outputs).split(",")
+            outputs = [out.strip() for out in outputs if out.strip()]
 
-    # Filter output
-    if category == "tags":
-        outputs = [e for e in outputs if e in tags]
-
-    return outputs
+            # Filter output
+            if category == "tags":
+                outputs = [e for e in outputs if e in tags]
+                
+            print(category, outputs)
+            return outputs
+        except Exception as e:
+            print(f"[ERROR] LLM failed with error: {e}")
+    return ""
 
 # Identify the companies in the article
 # @Private method
@@ -258,13 +262,17 @@ def identify_company_names(body):
     company_names_list = [name.strip() for name in company_names if name.strip()]
     # print("company names list", company_names_list)
     
-    company_names = str(llm.complete(prompt_name)).split(",")
+    for llm in llmcollection.get_llms():
+        try:
+            company_names = str(llm.complete(prompt_name)).split(",")
+        except Exception as e:
+            print(f"[ERROR] LLM failed: {e}")
     # print("company names groq", company_names)
     for name in company_names:
         if name not in company_names_list:
             company_names_list.append(name)
     print("final list", company_names_list)
-    
+    print("test")
     return company_names_list
 
 
@@ -437,30 +445,45 @@ def predict_dimension(title: str, article: str):
     do not add anything else
     """
 
-    outputs = llm.complete(prompt)
-
     result = {
-        "valuation": None,
-        "future": None,
-        "technical": None,
-        "financials": None,
-        "dividend": None,
-        "management": None,
-        "ownership": None,
-        "sustainability": None,
-    }
-
-    for line in outputs.text.splitlines():
-        item = line.split(":")
-        key = item[0].strip()
+                "valuation": None,
+                "future": None,
+                "technical": None,
+                "financials": None,
+                "dividend": None,
+                "management": None,
+                "ownership": None,
+                "sustainability": None,
+            }
+    for llm in llmcollection.get_llms():
         try:
-            value = int(item[1])
+            outputs = llm.complete(prompt)
 
-            if key in result:
-                result[key] = value
-        except:
-            pass
+            result = {
+                "valuation": None,
+                "future": None,
+                "technical": None,
+                "financials": None,
+                "dividend": None,
+                "management": None,
+                "ownership": None,
+                "sustainability": None,
+            }
 
+            for line in outputs.text.splitlines():
+                item = line.split(":")
+                key = item[0].strip()
+                try:
+                    value = int(item[1])
+
+                    if key in result:
+                        result[key] = value
+                except:
+                    pass
+
+            return result
+        except Exception as e:
+            print(f"[ERROR] LLM failed with error: {e}")
     return result
 
 

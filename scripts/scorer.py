@@ -8,12 +8,8 @@ dotenv.load_dotenv()
 import os
 from llama_index.llms.groq import Groq
 
-llm = Groq(
-    model="llama3-70b-8192",
-    api_key=os.getenv("GROQ_API_KEY"),
-)
-
-
+from model.llm_collection import LLMCollection
+llmcollection = LLMCollection()
 
 def get_article_score(body):
    
@@ -257,12 +253,14 @@ A high quality news article is one that is:
    
    If no article is given, give it a score of 0"""
 
-   outputs = str(llm.complete(prompt)).split(" ")[0]
-   print(outputs)
-   
-   if outputs.isdigit():
-      return int(outputs)
-   else:
-      return 0
+   for llm in llmcollection.get_llms():
+        try:
+            output = str(llm.complete(prompt)).split(" ")[0]
+            if output.isdigit():
+               return int(output)
+            else:   
+               return 0
+        except Exception as e:
+            print(f"[ERROR] LLM failed with error: {e}")
 
 # print(get_article_score("Thai investor Siam Kraft Industry Company Limited acquired 55.24% ownership of PT Fajar Surya Wisesa Tbk, purchasing over 1.36 billion shares, while other investors made notable transactions, including Low Tuck Kwong increasing his stake in PT Bayan Resources Tbk to 62.15%. Meanwhile, foreign investor Chemical Asia Corporation Pte Ltd reduced its shares in PT Victoria Investama Tbk, and other investors sold shares in various companies, including PT Platinum Wahab Nusantara Tbk and PT Sinar Mas Multiartha Tbk."))

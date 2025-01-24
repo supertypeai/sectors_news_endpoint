@@ -2,6 +2,8 @@
 Script to use LLM for summarizing a news article, uses OpenAI and Groq
 '''
 import dotenv
+
+from model.llm_collection import LLMCollection
 dotenv.load_dotenv()
 
 from openai import OpenAI
@@ -24,10 +26,7 @@ nltk.data.path.append('./nltk_data')
 client = OpenAI(
   api_key=os.getenv('OPENAI_API_KEY'),  
 )
-llm = Groq(
-    model="llama3-70b-8192",
-    api_key=os.getenv('GROQ_API_KEY'),
-)
+llmcollection = LLMCollection()
 
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36'
 HEADERS = {
@@ -70,9 +69,12 @@ def summarize_llama(body, category):
         "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
     }
 
-    output = str(llm.complete(prompt[category] + f"\n\nNews: {body}")).split("\n")[-1]
-
-    return output
+    for llm in llmcollection.get_llms():
+        try:
+            output = str(llm.complete(prompt[category] + f"\n\nNews: {body}")).split("\n")[-1]
+            return output
+        except Exception as e:
+            print(f"[ERROR] LLM failed with error: {e}")
 
 def preprocess_text(news_text):
     # Remove parenthesis
