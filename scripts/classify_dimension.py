@@ -1,5 +1,5 @@
 '''
-Script to classify the dimension of a news article
+Script to classify the dimension of news articles in the database
 '''
 import dotenv
 import os
