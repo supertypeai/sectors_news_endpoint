@@ -4,7 +4,7 @@ Script to reclassify all the tags of the news in the current database
 import dotenv
 import os
 from supabase import create_client, Client
-from classifier import get_tags_chat, classify_llama
+from scripts.classifier import get_tags_chat, classify_llama
 
 if __name__ == "__main__":
     dotenv.load_dotenv()

@@ -4,7 +4,7 @@ Script to classify the dimension of news articles in the database
 import dotenv
 import os
 from supabase import create_client, Client
-from classifier import predict_dimension
+from scripts.classifier import predict_dimension
 
 if __name__ == "__main__":
     dotenv.load_dotenv()

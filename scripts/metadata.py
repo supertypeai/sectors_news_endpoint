@@ -4,7 +4,6 @@ Script to extract the title and body metadata from a news article page
 import ssl
 import dotenv
 import os
-import urllib.request
 from bs4 import BeautifulSoup
 import requests
 from requests.exceptions import RequestException
