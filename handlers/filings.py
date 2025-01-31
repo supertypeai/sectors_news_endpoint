@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify, current_app
+from handlers.articles import sanitize_insert
 from middleware.api_key import require_api_key
 from database import supabase, sectors_data
 from datetime import datetime
+from model.filings_model import Filing
+from model.news_model import News
 from model.price_transaction import PriceTransaction
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
@@ -295,9 +298,12 @@ def insert_insider_trading_supabase(data, format=True):
         new_article = sanitize_filing(data)
     else:
         new_article = sanitize_filing_article(data, generate=False)
-
+    
+    news_article = News.from_filing(Filing(**new_article))
+    response_news = supabase.table("idx_news").insert(news_article.__dict__).execute()
     response = supabase.table("idx_filings").insert(new_article).execute()
-    return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
+    
+    return {"status": "success", "id_filings": response.data[0]["id"], "id_news": response_news.data[0]["id"], "status_code": 200}
 
 
 def update_insider_trading_supabase(data):
