@@ -14,6 +14,7 @@ from scripts.classifier import (
     predict_dimension,
     get_sentiment_chat,
 )
+from model.news_model import News
 
 COMPANY_DATA = load_company_data()
 
@@ -138,7 +139,7 @@ def get_article_from_url():
     """
     input_data = request.get_json()
     data = generate_article(input_data)
-    return data, 200
+    return data.to_json(), 200
 
 
 @articles_module.route("/url-article/post", methods=["POST"])
@@ -228,22 +229,22 @@ def sanitize_insert(data, generate=True):
     """
     new_article = sanitize_article(data, generate)
     # Redundancy check, ignore article that has the same URL
-    all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.get("source")).execute()
+    all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.source).execute()
     links = {}
     for article_db in all_articles_db.data:
         if article_db.get("source") not in links.keys():
             links[article_db.get("source")] = article_db.get("id")
 
-    if new_article.get("source") in links.keys():
+    if new_article.source in links.keys():
         return {
             "status": "restricted",
             "message": f"Insert failed! Duplicate source",
             "status_code": 400,
-            "id_duplicate": links[new_article.get("source")],
+            "id_duplicate": links[new_article.source],
         }
 
     # Insert new article
-    response = supabase.table("idx_news").insert(new_article).execute()
+    response = supabase.table("idx_news").insert(new_article.to_json()).execute()
     return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
 
@@ -256,14 +257,14 @@ def sanitize_update(data):
     
     @return JSON response of update status.
     """
-    new_article = sanitize_article(data, generate=False)
+    new_article = News.sanitize(data)
     record_id = data.get("id")
 
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
 
     response = (
-        supabase.table("idx_news").update(new_article).eq("id", record_id).execute()
+        supabase.table("idx_news").update(new_article.to_json()).eq("id", record_id).execute()
     )
 
     return {
@@ -342,33 +343,30 @@ def sanitize_article(data, generate=True):
             title = generated_title
         if body == "":
             body = generated_body
-
-    new_article = {
-        "title": title,
-        "body": body,
-        "source": source,
-        "timestamp": timestamp.isoformat(),
-        "sector": sector,
-        "sub_sector": sub_sector,
-        "tags": tags,
-        "tickers": tickers,
-        "dimension": dimension,
-        "score": score
-    }
+            
+    new_article = News(title, body, source, timestamp.isoformat(), sector, sub_sector, tags, tickers, dimension, score)
 
     if generate:
-        new_title, new_body = summarize_news(new_article["source"])
+        new_title, new_body = summarize_news(new_article.source)
 
         if len(new_body) > 0:
-            new_article["body"] = new_body
+            new_article.body = new_body
 
         if len(new_title) > 0:
-            new_article["title"] = new_title
+            new_article.title = new_title
 
     return new_article
 
 
 def generate_article(data):
+    """
+    @helper-function
+    @brief Generate article from URL.
+    
+    @param source URL.
+    
+    @return Generatd article in News model.
+    """
     source = data.get("source").strip()
     timestamp_str = data.get("timestamp").strip()
     timestamp_str = timestamp_str.replace("T", " ")
@@ -386,6 +384,7 @@ def generate_article(data):
         "dimension": None,
         "score": None
     }
+    new_article = News.from_json(json.dumps(new_article))
 
     title, body = summarize_news(source)
     
@@ -419,14 +418,14 @@ def generate_article(data):
                 sector = sectors_data[e]
                 break
 
-        new_article["title"] = title
-        new_article["body"] = body
-        new_article["sector"] = sector
-        new_article["sub_sector"] = sub_sector
-        new_article["tags"] = tags
-        new_article["tickers"] = tickers
-        new_article["dimension"] = predict_dimension(title, body)
-        new_article["score"] = int(get_article_score(body))
+        new_article.title = title
+        new_article.body = body
+        new_article.sector = sector
+        new_article.sub_sector = sub_sector
+        new_article.tags = tags
+        new_article.tickers = tickers
+        new_article.dimension = predict_dimension(title, body)
+        new_article.score = int(get_article_score(body))
 
         return new_article
     else:
