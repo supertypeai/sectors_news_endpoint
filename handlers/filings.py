@@ -8,6 +8,7 @@ from model.news_model import News
 from model.price_transaction import PriceTransaction
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
+from scripts.notification import notify_subscriber
 from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
@@ -302,6 +303,8 @@ def insert_insider_trading_supabase(data, format=True):
     news_article = News.from_filing(Filing(**new_article))
     response_news = supabase.table("idx_news").insert(news_article.__dict__).execute()
     response = supabase.table("idx_filings").insert(new_article).execute()
+    
+    notify_subscriber([*news_article.sub_sector, *news_article.tags, *news_article.tickers])
     
     return {"status": "success", "id_filings": response.data[0]["id"], "id_news": response_news.data[0]["id"], "status_code": 200}
 

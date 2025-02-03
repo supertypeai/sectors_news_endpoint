@@ -10,11 +10,13 @@ from middleware.api_key import require_api_key
 from database import supabase
 from handlers.articles import articles_module
 from handlers.filings import filings_module
+from handlers.subscription import subscription_module
 from handlers.support import log_request_info
 
 app = Flask(__name__)
 app.register_blueprint(articles_module)
 app.register_blueprint(filings_module)
+app.register_blueprint(subscription_module)
 
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 app.config["UPLOAD_FOLDER"] = "/tmp"

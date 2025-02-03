@@ -5,6 +5,7 @@ from scripts.metadata import extract_metadata
 from database import supabase, sectors_data, top300_data
 from datetime import datetime
 from scripts.scorer import get_article_score
+from scripts.notification import notify_subscriber
 from scripts.summary_news import summarize_news
 from scripts.classifier import (
     get_tickers,
@@ -245,6 +246,7 @@ def sanitize_insert(data, generate=True):
 
     # Insert new article
     response = supabase.table("idx_news").insert(new_article.to_json()).execute()
+    notify_subscriber([*new_article.sub_sector, *new_article.tags, *new_article.tickers])
     return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
 
@@ -257,7 +259,7 @@ def sanitize_update(data):
     
     @return JSON response of update status.
     """
-    new_article = News.sanitize(data)
+    new_article = sanitize_article(data, generate=False)
     record_id = data.get("id")
 
     if not record_id:
