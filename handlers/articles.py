@@ -5,7 +5,6 @@ from scripts.metadata import extract_metadata
 from database import supabase, sectors_data, top300_data
 from datetime import datetime
 from scripts.scorer import get_article_score
-from scripts.notification import notify_subscriber
 from scripts.summary_news import summarize_news
 from scripts.classifier import (
     get_tickers,
@@ -16,8 +15,12 @@ from scripts.classifier import (
     get_sentiment_chat,
 )
 from model.news_model import News
+import pytz
+
+timezone = pytz.timezone('Asia/Bangkok')
 
 COMPANY_DATA = load_company_data()
+SECTORS_DATA = sectors_data
 
 articles_module = Blueprint('articles', __name__)
 
@@ -179,6 +182,22 @@ def evaluate_article():
         return jsonify({"score": str(get_article_score(body))})
     else:
         return jsonify({"score": str(0)})
+
+@articles_module.route("/stock-split", methods=["POST"])
+@require_api_key
+def insert_stock_split():
+    """
+    @API-function
+    @brief Insert stock split news.
+    
+    @request-args
+    stock-split-data: JSON
+    
+    @return JSON response of insertion status.
+    """
+    input_data = request.get_json()
+    result = generate_stock_split_article(input_data)
+    return result, result.get("status_code")
     
 def filter_fp(article):
     """
@@ -228,7 +247,7 @@ def sanitize_insert(data, generate=True):
     
     @return JSON response of insertion status.
     """
-    new_article = sanitize_article(data, generate)
+    new_article: News = News.sanitize_article(data, generate)
     # Redundancy check, ignore article that has the same URL
     all_articles_db = supabase.table("idx_news").select("*").eq("source", new_article.source).execute()
     links = {}
@@ -246,7 +265,6 @@ def sanitize_insert(data, generate=True):
 
     # Insert new article
     response = supabase.table("idx_news").insert(new_article.to_json()).execute()
-    notify_subscriber([*new_article.sub_sector, *new_article.tags, *new_article.tickers])
     return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
 
 
@@ -259,7 +277,7 @@ def sanitize_update(data):
     
     @return JSON response of update status.
     """
-    new_article = sanitize_article(data, generate=False)
+    new_article: News = News.sanitize_article(data, generate=False)
     record_id = data.get("id")
 
     if not record_id:
@@ -275,99 +293,15 @@ def sanitize_update(data):
         "status_code": 200,
     }
 
-def sanitize_article(data, generate=True):
-    """
-    @helper-function
-    @brief Sanitation of article data.
-    
-    @param data Article to be sanitated.
-    
-    @return Sanitized article in article format.
-    """
-    # Sanitization v1.0
-    title = data.get("title").strip() if data.get("title") else None
-    body = data.get("body").strip() if data.get("body") else None
-    source = data.get("source").strip()
-    timestamp_str = data.get("timestamp").strip()
-    timestamp_str = timestamp_str.replace("T", " ")
-    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-    score = int(data.get("score")) if data.get("score") else None
-
-    sub_sector = []
-
-    # Handle get subsector (subsector, sub_sector) (string, list, empty)
-    if "sub_sector" in data and isinstance(data.get("sub_sector"), str) and data.get("sub_sector").strip() != "":
-        sub_sector.append(data.get("sub_sector").strip())
-    elif "subsector" in data and isinstance(data.get("subsector"), str) and data.get("subsector").strip() != "":
-        sub_sector.append(data.get("subsector").strip())
-    elif "sub_sector" in data and isinstance(data.get("sub_sector"), list):
-        sub_sector = data.get("sub_sector")
-    elif "subsector" in data and isinstance(data.get("subsector"), list):
-        sub_sector = data.get("subsector")
-
-    sector = ""
-
-    # Get sector if already exists, if not, generate with dictionary
-    if "sector" in data and isinstance(data.get("sector"), str):
-        sector = data.get("sector").strip()
-    else:
-        if len(sub_sector) != 0 and sub_sector[0] in sectors_data.keys():
-            sector = sectors_data[sub_sector[0]]
-        else:
-            sector = ""
-
-    tags = data.get("tags", [])
-    tickers = data.get("tickers", [])
-    dimension = data.get("dimension", None)
-
-    for i, ticker in enumerate(tickers):
-        split = ticker.split(".")
-        if len(split) > 1:
-            if split[1].upper() == "JK":
-                pass
-            else:
-                split[1] = ".JK"
-                tickers[i] = split[0] + split[1]
-        else:
-            tickers[i] += ".JK"
-        tickers[i] = tickers[i].upper()
-
-    if not title or not body:
-        generated_title, generated_body = extract_metadata(source)
-        if not title:
-            title = generated_title
-        if not body:
-            body = generated_body
-
-    if title == "" or body == "":
-        generated_title, generated_body = extract_metadata(source)
-        if title == "":
-            title = generated_title
-        if body == "":
-            body = generated_body
-            
-    new_article = News(title, body, source, timestamp.isoformat(), sector, sub_sector, tags, tickers, dimension, score)
-
-    if generate:
-        new_title, new_body = summarize_news(new_article.source)
-
-        if len(new_body) > 0:
-            new_article.body = new_body
-
-        if len(new_title) > 0:
-            new_article.title = new_title
-
-    return new_article
-
 
 def generate_article(data):
     """
     @helper-function
     @brief Generate article from URL.
     
-    @param source URL.
+    @param data source URL and timestamp.
     
-    @return Generatd article in News model.
+    @return Generated article in News model.
     """
     source = data.get("source").strip()
     timestamp_str = data.get("timestamp").strip()
@@ -386,7 +320,7 @@ def generate_article(data):
         "dimension": None,
         "score": None
     }
-    new_article = News.from_json(json.dumps(new_article))
+    new_article: News = News.from_json(json.dumps(new_article))
 
     title, body = summarize_news(source)
     
@@ -432,3 +366,38 @@ def generate_article(data):
         return new_article
     else:
         return new_article
+
+def generate_stock_split_article(data):
+    """
+    @helper-function
+    @brief Generate stock split article.
+    
+    @param data Stock split data.
+    
+    @return Generated article in News model.
+    """
+    ticker = data.get('symbol').strip()
+    date = data.get('date').strip()
+    split_ratio = data.get('split_ratio')
+    updated_on = data.get('updated_on').strip()
+    applied_on = data.get('applied_on').strip()
+
+    new_article = {
+        "title": f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}",
+        "body": f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}.",
+        "source": "https://sahamidx.com/?view=Stock.Split&path=Stock&field_sort=split_date&sort_by=DESC&page=1",
+        "timestamp": datetime.now(timezone).isoformat(),
+        "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
+        "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
+        "tags": ["Stock split", "Corporate action"],
+        "tickers": [ticker],
+        "dimension": None,
+        "score": None
+    }
+    
+    new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
+
+    # Insert new article
+    print(new_article)
+    response = supabase.table("idx_news").insert(new_article).execute()
+    return {"status": "success", "id": response.data['id'], "status_code": 200}
