@@ -214,7 +214,7 @@ def insert_dividend():
     """
     input_data = request.get_json()
     result = generate_dividend_article(input_data)
-    return result, result.get("status_code")
+    return result
     
 def filter_fp(article):
     """
@@ -433,7 +433,7 @@ def generate_dividend_article(data_list):
     
     @return List of JSON response of insertion status.
     """
-    response_list = []
+    print(data_list)
     for data in data_list:
         ticker = data.get('symbol').strip()
         dividend_amount = data.get('dividend_amount')
