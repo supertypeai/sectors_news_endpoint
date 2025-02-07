@@ -272,7 +272,6 @@ def identify_company_names(body):
         if name not in company_names_list:
             company_names_list.append(name)
     print("final list", company_names_list)
-    print("test")
     return company_names_list
 
 

@@ -1,7 +1,9 @@
 '''
 Script to use LLM for summarizing a news article, uses OpenAI and Groq
 '''
+from bs4 import BeautifulSoup
 import dotenv
+import requests
 
 from model.llm_collection import LLMCollection
 dotenv.load_dotenv()
@@ -14,7 +16,7 @@ import nltk
 import tiktoken
 from goose3 import Goose
 from llama_index.llms.groq import Groq
-from requests import Session
+from requests import Response, Session
 
 # NLTK download
 # nltk.download('punkt')
@@ -101,7 +103,7 @@ def preprocess_text(news_text):
     
     return processed_text
 
-def get_article_body(url):
+def get_article_body(url: str):
     try:
         proxy = os.environ.get("PROXY_KEY")
 
@@ -113,7 +115,18 @@ def get_article_body(url):
         g = Goose({'http_session': session})
         article = g.extract(url=url)
         print(f"[SUCCESS] Article from url {url} inferenced")
-        return article.cleaned_text
+        print("cleaned text", article.cleaned_text)
+        if article.cleaned_text:
+            return article.cleaned_text
+        else:
+            # If fail, get the HTML and extract the text
+            print(f"[REQUEST FAIL] Goose3 returned empty string, trying with soup")
+            response: Response = requests.get(url)
+            response.raise_for_status()
+            soup: BeautifulSoup = BeautifulSoup(response.content, 'html.parser')
+            content: BeautifulSoup = soup.find('div', class_="content")
+            print(f"[SUCCESS] Article inferenced from url {url} using soup")
+            return content.get_text()
     except Exception as e:
         print(f"[PROXY FAIL] Goose3 failed with error, trying with no proxy: {e} to url {url}")
         try:
@@ -124,7 +137,7 @@ def get_article_body(url):
             print(f"[ERROR] Goose3 failed with error: {e}")
             return ""
 
-def summarize_news(url):
+def summarize_news(url: str):
     news_text = get_article_body(url)
     if len(news_text) > 0:
         news_text = preprocess_text(news_text)
