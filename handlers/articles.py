@@ -198,7 +198,7 @@ def insert_stock_split():
     """
     input_data = request.get_json()
     result = generate_stock_split_article(input_data)
-    return result, result.get("status_code")
+    return result
 
 @articles_module.route("/dividend", methods=["POST"])
 @require_api_key
@@ -384,74 +384,85 @@ def generate_article(data):
     else:
         return new_article
 
-def generate_stock_split_article(data):
+def generate_stock_split_article(data_list):
     """
     @helper-function
-    @brief Generate stock split article.
+    @brief Generate stock split articles.
     
-    @param data Stock split data.
+    @param data_list List of stock split data.
     
-    @return Generated article in News model.
+    @return List of JSON response of insertion status.
     """
-    ticker = data.get('symbol').strip()
-    date = data.get('date').strip()
-    split_ratio = data.get('split_ratio')
-    updated_on = data.get('updated_on').strip()
-    applied_on = data.get('applied_on').strip()
+    response_list = []
+    for data in data_list:
+        ticker = data.get('symbol').strip()
+        date = data.get('date').strip()
+        split_ratio = data.get('split_ratio')
+        updated_on = data.get('updated_on').strip()
+        applied_on = data.get('applied_on').strip()
 
-    new_article = {
-        "title": convert_dates_to_long_format(f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}"),
-        "body": convert_dates_to_long_format(f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}."),
-        "source": "https://sahamidx.com/?view=Stock.Split&path=Stock&field_sort=split_date&sort_by=DESC&page=1",
-        "timestamp": datetime.now(timezone).isoformat(),
-        "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
-        "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
-        "tags": ["Stock split", "Corporate action"],
-        "tickers": [ticker],
-        "dimension": None,
-        "score": None
-    }
-    
-    new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
+        new_article = {
+            "title": convert_dates_to_long_format(f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}"),
+            "body": convert_dates_to_long_format(f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}."),
+            "source": "https://sahamidx.com/?view=Stock.Split&path=Stock&field_sort=split_date&sort_by=DESC&page=1",
+            "timestamp": datetime.now(timezone).isoformat(),
+            "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
+            "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
+            "tags": ["Stock split", "Corporate action"],
+            "tickers": [ticker],
+            "dimension": None,
+            "score": None
+        }
+        
+        new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
 
-    # Insert new article
-    response = supabase.table("idx_news").insert(new_article).execute()
-    return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
+        # Insert new article
+        try:
+            response = supabase.table("idx_news").insert(new_article).execute()
+            response_list.append({"status": "success", "id": response.data[0]['id']})
+        except Exception as e:
+            response_list.append({"status": "failed", "error": str(e)})
+    return response_list
 
-def generate_dividend_article(data):
+def generate_dividend_article(data_list):
     """
     @helper-function
-    @brief Generate dividend article.
+    @brief Generate dividend articles.
     
-    @param data Dividend data.
+    @param data_list List of dividend data.
     
-    @return Generated article in News model.
+    @return List of JSON response of insertion status.
     """
-    ticker = data.get('symbol').strip()
-    dividend_amount = data.get('dividend_amount')
-    ex_date = data.get('ex_date').strip()
-    updated_on = data.get('updated_on').strip()
-    payment_date = data.get('payment_date').strip()
+    response_list = []
+    for data in data_list:
+        ticker = data.get('symbol').strip()
+        dividend_amount = data.get('dividend_amount')
+        ex_date = data.get('ex_date').strip()
+        updated_on = data.get('updated_on').strip()
+        payment_date = data.get('payment_date').strip()
 
-    new_article = {
-        "title": convert_dates_to_long_format(f"{ticker} Announces Dividend of {dividend_amount} IDR, Ex-Date on {ex_date}"),
-        "body": convert_dates_to_long_format(f"{ticker} has declared a dividend of {dividend_amount} IDR per share, with an ex-dividend date set for {ex_date}. The payment is scheduled to be made on {payment_date}. This update was last confirmed on {updated_on}."),
-        "source": "https://sahamidx.com/?view=Stock.Cash.Dividend&path=Stock&field_sort=rg_ng_ex_date&sort_by=DESC&page=1",
-        "timestamp": datetime.now(timezone).isoformat(),
-        "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
-        "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
-        "tags": ["Dividend", "Corporate action"],
-        "tickers": [ticker],
-        "dimension": None,
-        "score": None
-    }
-    
-    new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
+        new_article = {
+            "title": convert_dates_to_long_format(f"{ticker} Announces Dividend of {dividend_amount} IDR, Ex-Date on {ex_date}"),
+            "body": convert_dates_to_long_format(f"{ticker} has declared a dividend of {dividend_amount} IDR per share, with an ex-dividend date set for {ex_date}. The payment is scheduled to be made on {payment_date}. This update was last confirmed on {updated_on}."),
+            "source": "https://sahamidx.com/?view=Stock.Cash.Dividend&path=Stock&field_sort=rg_ng_ex_date&sort_by=DESC&page=1",
+            "timestamp": datetime.now(timezone).isoformat(),
+            "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
+            "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
+            "tags": ["Dividend", "Corporate action"],
+            "tickers": [ticker],
+            "dimension": None,
+            "score": None
+        }
+        
+        new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
 
-    # Insert new article
-    response = supabase.table("idx_news").insert(new_article).execute()
-    print(response)
-    return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
+        # Insert new article
+        try:
+            response = supabase.table("idx_news").insert(new_article).execute()
+            response_list.append({"status": "success", "id": response.data[0]['id']})
+        except Exception as e:
+            response_list.append({"status": "failed", "error": str(e)})
+    return response_list
 
 def convert_dates_to_long_format(text):
     """
