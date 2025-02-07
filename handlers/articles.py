@@ -1,4 +1,5 @@
 import json
+import re
 from flask import Blueprint, request, jsonify
 from middleware.api_key import require_api_key
 from scripts.metadata import extract_metadata
@@ -198,6 +199,22 @@ def insert_stock_split():
     input_data = request.get_json()
     result = generate_stock_split_article(input_data)
     return result, result.get("status_code")
+
+@articles_module.route("/dividend", methods=["POST"])
+@require_api_key
+def insert_dividend():
+    """
+    @API-function
+    @brief Insert dividend news.
+    
+    @request-args
+    dividend-data: JSON
+    
+    @return JSON response of insertion status.
+    """
+    input_data = request.get_json()
+    result = generate_dividend_article(input_data)
+    return result, result.get("status_code")
     
 def filter_fp(article):
     """
@@ -383,8 +400,8 @@ def generate_stock_split_article(data):
     applied_on = data.get('applied_on').strip()
 
     new_article = {
-        "title": f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}",
-        "body": f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}.",
+        "title": convert_dates_to_long_format(f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}"),
+        "body": convert_dates_to_long_format(f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}."),
         "source": "https://sahamidx.com/?view=Stock.Split&path=Stock&field_sort=split_date&sort_by=DESC&page=1",
         "timestamp": datetime.now(timezone).isoformat(),
         "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
@@ -398,6 +415,60 @@ def generate_stock_split_article(data):
     new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
 
     # Insert new article
-    print(new_article)
     response = supabase.table("idx_news").insert(new_article).execute()
-    return {"status": "success", "id": response.data['id'], "status_code": 200}
+    return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
+
+def generate_dividend_article(data):
+    """
+    @helper-function
+    @brief Generate dividend article.
+    
+    @param data Dividend data.
+    
+    @return Generated article in News model.
+    """
+    ticker = data.get('symbol').strip()
+    dividend_amount = data.get('dividend_amount')
+    ex_date = data.get('ex_date').strip()
+    updated_on = data.get('updated_on').strip()
+    payment_date = data.get('payment_date').strip()
+
+    new_article = {
+        "title": convert_dates_to_long_format(f"{ticker} Announces Dividend of {dividend_amount} IDR, Ex-Date on {ex_date}"),
+        "body": convert_dates_to_long_format(f"{ticker} has declared a dividend of {dividend_amount} IDR per share, with an ex-dividend date set for {ex_date}. The payment is scheduled to be made on {payment_date}. This update was last confirmed on {updated_on}."),
+        "source": "https://sahamidx.com/?view=Stock.Cash.Dividend&path=Stock&field_sort=rg_ng_ex_date&sort_by=DESC&page=1",
+        "timestamp": datetime.now(timezone).isoformat(),
+        "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
+        "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
+        "tags": ["Dividend", "Corporate action"],
+        "tickers": [ticker],
+        "dimension": None,
+        "score": None
+    }
+    
+    new_article["dimension"] = predict_dimension(new_article['title'], new_article['body'])
+
+    # Insert new article
+    response = supabase.table("idx_news").insert(new_article).execute()
+    print(response)
+    return {"status": "success", "id": response.data[0]['id'], "status_code": 200}
+
+def convert_dates_to_long_format(text):
+    """
+    Converts all datetime formats in the given text to "Month Date, Year".
+
+    @param text: The input text containing datetime strings.
+    @return: The text with all datetime strings converted to "Month Date, Year".
+    """
+    # Define the regex pattern to match datetime strings
+    date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2}(?:\.\d+)?(?:\+\d{2}:\d{2})?)?')
+
+    def replace_date(match):
+        # Parse the matched date string to a datetime object
+        date_str = match.group(0)
+        date_obj = datetime.fromisoformat(date_str)
+        # Convert the datetime object to the desired format
+        return date_obj.strftime("%B %d, %Y")
+
+    # Replace all matched date strings in the text
+    return date_pattern.sub(replace_date, text)
