@@ -1,18 +1,35 @@
 # syntax=docker/dockerfile:1
 
-ARG PYTHON_VERSION=3.11.3
+# Stage 1: Build Stage
+FROM python:3.11-slim as builder
 
-FROM python:${PYTHON_VERSION}-slim
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-LABEL fly_launch_runtime="flask"
+WORKDIR /app
 
-WORKDIR /code
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
+# Stage 2: Final Stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy only necessary files
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+RUN pip install --no-cache /wheels/*
+
+# Copy application code
 COPY . .
 
 EXPOSE 8080
 
-CMD ["gunicorn","--config", "gunicorn_config.py", "app:app"]
+CMD ["gunicorn", "--config", "gunicorn_config.py", "app:app"]
