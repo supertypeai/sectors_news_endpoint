@@ -11,14 +11,12 @@ import json
 from supabase import create_client, Client
 import os
 from datetime import datetime
-from openai import OpenAI
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import string
 
-from sklearn.metrics.pairwise import cosine_similarity
 
 # OPTIONS
 SUBSECTOR_LOAD = True
@@ -29,9 +27,6 @@ nltk.data.path.append("./nltk_data")
 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), SUPABASE_KEY)
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-)
 
 llmcollection = LLMCollection()
 
@@ -242,25 +237,27 @@ def identify_company_names(body):
     
     Say nothing else. (Do not add intro)"""
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant that indentifies companies mentioned in a news article.",
-            },
-            {"role": "user", "content": prompt_name},
-        ],
-        max_tokens=150,
-        temperature=0.5,
-        stop=None,
-        n=1,
-    )
+    # response = client.chat.completions.create(
+    #     model="gpt-3.5-turbo",
+    #     messages=[
+    #         {
+    #             "role": "system",
+    #             "content": "You are a helpful assistant that indentifies companies mentioned in a news article.",
+    #         },
+    #         {"role": "user", "content": prompt_name},
+    #     ],
+    #     max_tokens=150,
+    #     temperature=0.5,
+    #     stop=None,
+    #     n=1,
+    # )
 
-    company_names = response.choices[0].message.content.strip().split(",")
-    # print("company names openai", company_names)
-    company_names_list = [name.strip() for name in company_names if name.strip()]
-    # print("company names list", company_names_list)
+    # company_names = response.choices[0].message.content.strip().split(",")
+    # # print("company names openai", company_names)
+    # company_names_list = [name.strip() for name in company_names if name.strip()]
+    # # print("company names list", company_names_list)
+    
+    company_names_list = []
     
     for llm in llmcollection.get_llms():
         try:
@@ -315,41 +312,6 @@ def preprocess_text(text):
     return processed_text
 
 
-# @Private method
-def get_embedding(text):
-    response = client.embeddings.create(model="text-embedding-ada-002", input=text)
-    return response.data[0].embedding
-
-
-# EMBEDDINGS LOAD
-def load_subsector_embeddings():
-    if SUBSECTOR_LOAD:
-        with open("./data/subsector_embeddings.json", "r") as f:
-            subsector_embeddings = json.load(f)
-    else:
-        subsectors = load_subsector_data()
-        subsector_embeddings = {
-            subsector: get_embedding(description)
-            for subsector, description in subsectors.items()
-        }
-        with open("./data/subsector_embeddings.json", "w") as f:
-            json.dump(subsector_embeddings, f)
-    return subsector_embeddings
-
-
-def load_tag_embeddings():
-    if TAG_LOAD:
-        with open("./data/tag_embeddings.json", "r") as f:
-            tag_embeddings = json.load(f)
-    else:
-        # RENEW IF TAGS CHANGE
-        tags = load_tag_data()
-        tag_embeddings = {tag: get_embedding(tag) for tag in tags}
-        with open("./data/tag_embeddings.json", "w") as f:
-            json.dump(tag_embeddings, f)
-    return tag_embeddings
-
-
 # @Public method
 def get_tickers(text):
     company_names = identify_company_names(text)
@@ -381,39 +343,6 @@ def get_sentiment_chat(text):
     # return classify_ai(text, "sentiment")
     return classify_llama(text, "sentiment")
 
-
-# @Public method
-def get_tags_embeddings(text):
-    text = preprocess_text(text)
-    article_embedding = get_embedding(text)
-    tag_embeddings = load_tag_embeddings()
-
-    similarities = {
-        tag: cosine_similarity([article_embedding], [embedding])[0][0]
-        for tag, embedding in tag_embeddings.items()
-    }
-
-    top_5_tags = sorted(similarities, key=similarities.get, reverse=True)[:5]
-
-    return top_5_tags
-
-
-# @Public method
-def get_subsector_embeddings(text):
-    text = preprocess_text(text)
-    article_embedding = get_embedding(text)
-    subsector_embeddings = load_subsector_embeddings()
-
-    similarities_subsector = {
-        subsector: cosine_similarity([article_embedding], [embedding])[0][0]
-        for subsector, embedding in subsector_embeddings.items()
-    }
-
-    most_relevant_subsector = max(
-        similarities_subsector, key=similarities_subsector.get
-    )
-
-    return most_relevant_subsector
 
 # @Public method
 def predict_dimension(title: str, article: str):

@@ -5,9 +5,6 @@ import dotenv
 
 dotenv.load_dotenv()
 
-import os
-from llama_index.llms.groq import Groq
-
 from model.llm_collection import LLMCollection
 llmcollection = LLMCollection()
 

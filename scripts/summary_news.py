@@ -8,26 +8,18 @@ import requests
 from model.llm_collection import LLMCollection
 dotenv.load_dotenv()
 
-from openai import OpenAI
 import os
 import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
-import tiktoken
 from goose3 import Goose
-from llama_index.llms.groq import Groq
 from requests import Response, Session
 
 # NLTK download
-# nltk.download('punkt')
-# nltk.download('punkt_tab', download_dir='./nltk_data')
 nltk.data.path.append('./nltk_data')
 
 
 # Model Creation
-client = OpenAI(
-  api_key=os.getenv('OPENAI_API_KEY'),  
-)
 llmcollection = LLMCollection()
 
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36'
@@ -43,27 +35,6 @@ HEADERS = {
     "Cache-Control": "max-age=0",
     'x-test': 'true',
 }
-
-def count_tokens(text):
-    enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
-    tokens = enc.encode(text)
-    return len(tokens)
-
-def summarize_ai(news_text, category):
-    prompt = {
-        "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Do not start with 'summary:' or 'in summary' etc.",
-        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
-    }
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that summarizes the news articles to be displayed for stock traders."},
-            {"role": "user", "content": prompt[category] + "\n\nNews: " + news_text}
-        ],
-        max_tokens=150
-    )
-    return response.choices[0].message.content
 
 def summarize_llama(body, category):
     prompt = {

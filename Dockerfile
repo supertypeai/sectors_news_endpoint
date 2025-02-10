@@ -22,10 +22,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Copy only necessary files
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
