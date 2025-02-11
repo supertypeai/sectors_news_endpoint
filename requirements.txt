@@ -11,5 +11,5 @@ supabase==2.7.3
 tiktoken==0.7.0
 # lxml[html_clean]==4.9.3
 llama_index.llms.groq
-# gunicorn==23.0.0
+gunicorn==23.0.0
 werkzeug~=3.0.3
