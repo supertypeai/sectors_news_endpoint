@@ -34,6 +34,25 @@ class News:
         self.tickers = tickers
         self.dimension = dimension
         self.score = score
+        
+    def to_dict(self):
+        """
+        Converts the News object to a dictionary.
+
+        @return: Dictionary representation of the News object.
+        """
+        return {
+            "title": self.title,
+            "body": self.body,
+            "source": self.source,
+            "timestamp": self.timestamp,
+            "sector": self.sector,
+            "sub_sector": self.sub_sector,
+            "tags": self.tags,
+            "tickers": self.tickers,
+            "dimension": self.dimension,
+            "score": self.score
+        }
 
     def to_json(self):
         """

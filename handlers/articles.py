@@ -281,9 +281,15 @@ def sanitize_insert(data, generate=True):
         }
 
     # Insert new article
-    response = supabase.table("idx_news").insert(new_article.to_json()).execute()
-    return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
-
+    print(new_article.to_dict())
+    response = supabase.table("idx_news").insert(new_article.to_dict()).execute()
+    try:
+        print(response, response.data)
+        return {"status": "success", "id": response.data[0]["id"], "status_code": 200}
+    except Exception as e:
+        if len(response.data) == 0:
+            return {"status": "failed", "error": "Empty response", "status_code": 500}
+        return {"status": "failed", "error": str(e), "status_code": 500}
 
 def sanitize_update(data):
     """
@@ -301,7 +307,7 @@ def sanitize_update(data):
         return jsonify({"error": "Record ID is required", "status_code": 400})
 
     response = (
-        supabase.table("idx_news").update(new_article.to_json()).eq("id", record_id).execute()
+        supabase.table("idx_news").update(new_article.to_dict()).eq("id", record_id).execute()
     )
 
     return {
@@ -405,7 +411,7 @@ def generate_stock_split_article(data_list):
             "title": convert_dates_to_long_format(f"{ticker} Announces Stock Split by Ratio {split_ratio}x: Effective from {date}"),
             "body": convert_dates_to_long_format(f"{ticker} has announced a stock split with a ratio of {split_ratio} to adjust its share structure. The split will be effective starting on {date}. The announcement was last updated on {updated_on} and applied in sectors at {applied_on}."),
             "source": "https://sahamidx.com/?view=Stock.Split&path=Stock&field_sort=split_date&sort_by=DESC&page=1",
-            "timestamp": datetime.now(timezone).isoformat(),
+            "timestamp": datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S'),
             "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
             "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
             "tags": ["Stock split", "Corporate action"],
@@ -433,7 +439,7 @@ def generate_dividend_article(data_list):
     
     @return List of JSON response of insertion status.
     """
-    print(data_list)
+    response_list = []
     for data in data_list:
         ticker = data.get('symbol').strip()
         dividend_amount = data.get('dividend_amount')
@@ -445,7 +451,7 @@ def generate_dividend_article(data_list):
             "title": convert_dates_to_long_format(f"{ticker} Announces Dividend of {dividend_amount} IDR, Ex-Date on {ex_date}"),
             "body": convert_dates_to_long_format(f"{ticker} has declared a dividend of {dividend_amount} IDR per share, with an ex-dividend date set for {ex_date}. The payment is scheduled to be made on {payment_date}. This update was last confirmed on {updated_on}."),
             "source": "https://sahamidx.com/?view=Stock.Cash.Dividend&path=Stock&field_sort=rg_ng_ex_date&sort_by=DESC&page=1",
-            "timestamp": datetime.now(timezone).isoformat(),
+            "timestamp": datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S'),
             "sector": SECTORS_DATA[COMPANY_DATA[ticker]['sub_sector']],
             "sub_sector": [COMPANY_DATA[ticker]['sub_sector']],
             "tags": ["Dividend", "Corporate action"],
