@@ -59,72 +59,17 @@ def load_subsector_data():
 # @Private method
 def load_tag_data():
     # This tags is optimized for indonesia financial market
-    tags = [
-        # Economy
-        "Inflation",
-        "Recession",
-        "Interest Rates",
-        # Stock indexes
-        "IDX30",
-        "JII70",
-        "LQ45",
-        "SRIKEHATI",
-        # Stock Market
-        "IDX Composite",
-        "Market Trends",
-        "Market Sentiment",
-        "IDX",
-        "Bonds",
-        "Debt",
-        "Fintech",
-        # Commodities
-        "Energy Commodities",
-        "Palm Oil",
-        "Grains",
-        "Timber",
-        "Fertilizers",
-        "Metals and Minerals",
-        "Gold",
-        # Company News
-        "Earnings Report",
-        "Mergers & Acquisitions",
-        "IPO",
-        "Stock Splits",
-        "Dividends",
-        "Executive Changes",
-        "Buyback",
-        # Market Analysis
-        "Indicators",
-        "Market Analysis",
-        "Valuation",
-        "Financial Ratios",
-        "Balance Sheets",
-        "Bullish",
-        "Bearish",
-        "Short Selling",
-        # Events and Reports
-        "Economic Reports",
-        "Retail Sales",
-        "Product Launch",
-        "Conferences",
-        # Investor Insights
-        "Analyst Ratings",
-        # Miscellaneous
-        "ESG",
-        "Clean Energy",
-        "Sharia Economy",
-        "Foreign Investor",
-        # Technology Trends
-        "Artificial Intelligence",
-        "Blockchain",
-    ]
-    return tags
+    unique_tags = []
 
+    with open('./data/unique_tags.json', 'r') as f:
+        unique_tags = json.load(f)
+
+    return unique_tags
 
 # Ticker and Company name data, renew in date 1, 15 from supabase
 # @Private method
 def load_company_data():
-    if datetime.today().day in [1, 15]:
+    if datetime.today().day in [1, 15] or True:
         response = (
             supabase.table("idx_company_report")
             .select("symbol, company_name, sub_sector")
@@ -171,37 +116,97 @@ def classify_llama(body, category):
 
     # Prompts
     tags_prompt = f"""
-    This is a list of available tags: {', '.join(tag for tag in tags)}
-    ONLY USE TAGS THAT ARE MENTIONED HERE, DO NOT ADD TAGS THAT ARE NOT SPECIFIED.
+    ### List of Available Tags:
+    {', '.join(tag for tag in tags)}
+
+    ONLY USE the tags listed above. DO NOT create, modify, or infer new tags that are not explicitly provided.
+
+    ### **Tag Selection Rules:**
+    - Identify **AT MOST** 5 relevant tags from the provided list.
+    - The number of tags should be **based on actual relevance**, not forced to be 5.
+    - If only **1, 2, 3, or 4 tags** are relevant, select accordingly.
+
+    ### **Specific Tagging Instructions:**
+    - **`IPO`** → Use **ONLY** for upcoming IPOs. DO NOT apply to past IPO mentions.
+    - **`IDX`** → Use for news related to **Indonesia Stock Exchange (Bursa Efek Indonesia)**.
+    - **`IDX Composite`** → Use **only** if the article discusses the **price or performance of IDX/Indeks Harga Saham Gabungan**.
+    - **`Sharia Economy`** → Use if the article mentions **Sharia (Syariah) companies or economy**.
+
+    ### **Response Format:**
+    - Output the selected tags as a **comma-separated list** (e.g., `tag1, tag2, tag3`).
+    - **Do NOT** include explanations, additional words, or formatting beyond the list.
+
+    ---
+    #### **Article Content:**
+    {body}
+    """
     
-    Identify AT MOST 5 most relevant tags based on the available tags that previously defined.
-    It does not have to be 5 tags, it can be 1 tag, 2 tag, 3 tag, or 4 tag depending on ACTUAL RELEVANCE of the tags
-    
-    Only answer in the format: 'tag1, tag2, etc' and nothing else. 
-    
-    For `IPO` tag, only use for UPCOMING IPO, do not use for news that mention IPO in the past.
-    Use `IDX` for news related to indonesia stock exchange or bursa efek indonesia
-    Use `IDX Composite` for news that related to PRICE of IDX or indeks harga saham gabungan
-    Use `Sharia Economy` for news that also mention sharia/ syariah company
-    
-    Article content: {body}
+    ticker_prompt = f"""
+    ### List of Available Tickers:
+    {', '.join(ticker for ticker in company.keys())}
+
+    ONLY USE the tickers listed above. DO NOT infer or create tickers that are not explicitly provided.
+
+    ### **Ticker Extraction Rules:**
+    - Identify **all tickers** present in the article.
+    - If no tickers are found, return an **empty string ("")**.
+    - **Do NOT** modify, infer, or abbreviate ticker symbols.
+
+    ### **Response Format:**
+    - Output the tickers as a **comma-separated list** (e.g., `TICKER1, TICKER2, TICKER3`).
+    - If no tickers are found, return `""`.
+    - **Do NOT** include explanations, additional words, or formatting beyond the ticker list.
+
+    ---
+    #### **Article Content:**
+    {body}
     """
     
     subsector_prompt = f"""
-    This is a list of available subsectors: {', '.join(subsector for subsector in subsectors.keys())}
-    ONLY USE SUBSECTORS THAT ARE MENTIONED HERE, DO NOT ADD SUBSECTORS THAT ARE NOT SPECIFIED.
-    
-    Identify the subsector of the article.
-    Only answer in the format: 'subsector-name' and nothing else
-    
-    Article content: {body}.
+    ### List of Available Subsectors:
+    {', '.join(subsector for subsector in subsectors.keys())}
+
+    ONLY USE the subsectors listed above. DO NOT create, modify, or infer new subsectors that are not explicitly provided.
+
+    ### **Subsector Selection Rules:**
+    - Identify **ONE** most relevant subsector based on the article content.
+    - If multiple subsectors seem relevant, choose **the most specific and dominant** one.
+    - If **no appropriate subsector applies, return an empty string ("")**.
+
+    ### **Response Format:**
+    - Output **only** the name of the selected subsector (e.g., `subsector-name`).
+    - **Do NOT** include explanations, additional words, or formatting beyond the subsector name.
+
+    ---
+    #### **Article Content:**
+    {body}
     """
+    
+    sentiment_prompt = f"""
+    ### **Sentiment Classification (Bullish, Bearish, Neutral)**
+
+    Classify the **sentiment** of the following article from the perspective of **Indonesia's stock investors**.
+
+    ### **Sentiment Rules:**
+    - Classify the article into one of **three** categories:
+    - **"bullish"** → Indicates positive or optimistic sentiment toward stocks.
+    - **"bearish"** → Indicates negative or pessimistic sentiment toward stocks.
+    - **"neutral"** → Indicates a balanced or uncertain outlook.
+
+    ### **Response Format:**
+    - Output **ONLY** one word: `"bullish"`, `"bearish"`, or `"neutral"`.
+    - **Do NOT** include explanations, additional words, or formatting.
+
+    ---
+    #### **Article Content:**
+    {body}
+        """
 
     prompt = {
         "tags": tags_prompt,
-        "tickers": f"Tickers: {', '.join(ticker for ticker in company.keys())} and article: {body}. Identify all the tickers in the article, only answer in the format 'ticker1, ticker2, etc' and nothing else.",
+        "tickers": ticker_prompt,
         "subsectors": subsector_prompt,
-        "sentiment": f"Classify the sentiment ('bullish', 'bearish', 'neutral') of the article according to the context (actionable by Indonesia's stock investor). Article: {body}. Answer in one word (bullish or bearish or neutral)."
+        "sentiment": sentiment_prompt
     }
 
     # Prompt the LLM
@@ -214,7 +219,7 @@ def classify_llama(body, category):
 
             # Filter output
             if category == "tags":
-                outputs = [e for e in outputs if e in tags]
+                outputs = [e.lower() for e in outputs if e in tags]
                 
             print(category, outputs)
             return outputs
@@ -226,31 +231,27 @@ def classify_llama(body, category):
 # @Private method
 def identify_company_names(body):
     # print(body)
-    prompt_name = f"""Identify all the company names mentioned in the following article:
-    {body}
-    
-    For each company, for example PT. Antara Business Service (ABS), write it as 'Antara Business Service'
-    
-    Answer in the format: 
-    
-    Company A, Company B, Company C, Company D, etc
-    
-    Say nothing else. (Do not add intro)"""
+    prompt_name = f"""
+    ### **Company Name Extraction**
+    Identify all company names mentioned in the article.
 
-    # response = client.chat.completions.create(
-    #     model="gpt-3.5-turbo",
-    #     messages=[
-    #         {
-    #             "role": "system",
-    #             "content": "You are a helpful assistant that indentifies companies mentioned in a news article.",
-    #         },
-    #         {"role": "user", "content": prompt_name},
-    #     ],
-    #     max_tokens=150,
-    #     temperature=0.5,
-    #     stop=None,
-    #     n=1,
-    # )
+    ### **Extraction Rules:**
+    - Extract full company names without abbreviations.
+    - If a company name includes **"PT."**, omit **"PT."** and return only the full company name.
+    - If a company name includes **"Tbk"**, omit **"Tbk"** and return only the full company name.
+    - Example: **PT. Antara Business Service Tbk (ABS)** → `"Antara Business Service"`
+    - If no company names are found, return an **empty string ("")**.
+
+    ### **Response Format:**
+    - Output company names as a **comma-separated list** (e.g., `Company A, Company B, Company C`).
+    - If no company names are found, return `""`.
+    - **Do NOT** include explanations, additional words, or formatting.
+    - **Do NOT** include string formats such as \\n or \\t.
+
+    ---
+    #### **Article Content:**
+    {body}
+    """
 
     # company_names = response.choices[0].message.content.strip().split(",")
     # # print("company names openai", company_names)
@@ -267,7 +268,7 @@ def identify_company_names(body):
     # print("company names groq", company_names)
     for name in company_names:
         if name not in company_names_list:
-            company_names_list.append(name)
+            company_names_list.append(name.strip())
     print("final list", company_names_list)
     return company_names_list
 
@@ -347,30 +348,47 @@ def get_sentiment_chat(text):
 # @Public method
 def predict_dimension(title: str, article: str):
     prompt = f"""
-    This is a list of news classification: valuation, future, technical, financials, dividend, management, ownership, sustainability
+    ### **List of News Classifications:**
+    valuation, future, technical, financials, dividend, management, ownership, sustainability
 
-    valuation -> Article must contain specific numeric impacts on company valuation metrics (P/E, EBITDA, etc.) or include events that directly affect company market capitalization by at least 2% in a single trading day.
-    future -> Article should contain forward-looking statements with specific timelines or numeric projections, official company guidance updates, or analyst revisions that change growth/earnings estimates by at least 5%.
-    technical -> News must result in abnormal trading volume (2x average) or price movement (±3% in a single session) with clear technical pattern implications or breakthrough of significant support/resistance levels.
-    financials -> Article must discuss changes in financial metrics exceeding 5% year-over-year, unexpected earnings/revenue results, or material changes to the company's financial structure (debt, equity, assets).
-    dividend -> News must relate to dividend policy changes, actual dividend announcements, changes in payout ratios exceeding 3%, or events directly impacting dividend sustainability (cash flow, earnings coverage).
-    management -> Article must cover C-suite or board member changes, significant insider trading activity (>$1M), or major changes in executive compensation/corporate governance policies.
-    ownership -> News must report ownership changes exceeding 1% of outstanding shares, significant institutional investor actions, or material changes in short interest (>20% change).
-    sustainability -> Article must discuss quantifiable ESG impacts, formal sustainability initiative launches with specific goals, or changes in ESG ratings from major rating agencies.
+    ### **Classification Criteria:**
+    - **valuation** → Must include **numeric impacts** on valuation metrics (**P/E, EBITDA, etc.**) or events causing **≥2% market cap change** in a **single trading day**.
+    - **future** → Must contain **forward-looking statements** with **specific timelines**, numeric **projections**, **official company guidance**, or **analyst revisions** that **change growth/earnings estimates by ≥5%**.
+    - **technical** → Must report **abnormal trading volume** (**≥2× average**) or **price movement (±3% in one session)** with **clear technical patterns** or **significant support/resistance breakthroughs**.
+    - **financials** → Must discuss **financial metric changes** **≥5% year-over-year**, **unexpected earnings/revenue results**, or **material financial structure changes** (**debt, equity, assets**).
+    - **dividend** → Must relate to **dividend policy changes**, **dividend announcements**, **payout ratio changes ≥3%**, or **events affecting dividend sustainability** (**cash flow, earnings coverage**).
+    - **management** → Must cover **C-suite/board changes**, **significant insider trading (> $1M)**, or **major executive compensation/governance policy shifts**.
+    - **ownership** → Must report **ownership changes exceeding 1% of outstanding shares**, **significant institutional investor actions**, or **material short interest changes (>20%)**.
+    - **sustainability** → Must discuss **quantifiable ESG impacts**, **formal sustainability initiatives** with **specific goals**, or **ESG rating changes from major agencies**.
 
-    Article title: {title}
-    Article content: {article}
+    ---
+    ### **Classification Rules:**
+    - **Assign a classification value (0, 1, 2) for each category:**
+    - **0** → Not related.
+    - **1** → Slightly related.
+    - **2** → Highly related.
 
-    the value of classification is 0, 1, 2. 0 for not related, 1 for slightly related, 2 for highly related
-    if the news mention about company financial sustainability, make the sustainability dimension value 0
-    if the news mention about total amount of dividend or there is other classification that highly related, make the dividend dimension value 0
-    
-    answer in format:
-    valuation: value
-    peers: value
-    ... etc
+    - **Special Conditions:**
+    - If the news mentions **company financial sustainability**, set **sustainability = 0**.
+    - If the news mentions **total dividend amount** OR if another classification is **highly related**, set **dividend = 0**.
 
-    do not add anything else
+    ---
+    ### **Response Format:**
+    valuation: value 
+    future: value 
+    technical: value 
+    financials: value 
+    dividend: value 
+    management: value 
+    ownership: value 
+    sustainability: value
+
+    - **Do NOT** add explanations, extra words, or formatting beyond the structured response.
+
+    ---
+    ### **Article Details:**
+    **Title:** {title}  
+    **Content:** {article}
     """
 
     result = {
@@ -415,28 +433,28 @@ def predict_dimension(title: str, article: str):
     return result
 
 
-# body = ["GoTo, a merger between Gojek and Tokopedia, has absorbed nearly 80% of its IPO funds, amounting to Rp10.76 trillion by the end of June 2024. The company has generated a net proceeds of Rp13.5 trillion during its IPO in 2022, leaving Rp2.81 trillion remaining for operational and strategic purposes, including investments in companies like Gopay and Velox Digital.",
-# "PT. Bank Raya Indonesia Tbk has scheduled a share buyback with a budget of IDR 20 billion, pending approval from shareholders on August 21, 2024, aiming to increase employee engagement in the company without affecting business operations. The buyback will be funded from internal cash, and the number of shares to be repurchased has not been disclosed, projected to be below 10% of the issued paid-up capital.",
-# "PT Bank Syariah Indonesia (BSI) has made it to the top 5 state-owned enterprises with the largest market capitalization in Indonesia, reaching Rp116 trillion in July 2024. BSI's success is attributed to its inclusive, modern, and digital approach, with positive financial performance including distributing Rp855.56 billion cash dividends in 2023 and achieving a Rp1.71 trillion profit in Q1 2024 driven by robust growth in third-party funds and mobile banking transactions.",
-# "Hary Tanoesoedibjo has rescued MNC Asia Holding by acquiring 26 million shares at Rp50 each, investing a total of Rp1.3 billion. Following the purchase, Tanoesoedibjo's portfolio now holds 2.59 billion shares, a 3.1% increase from before the transaction.",
-# "Stocks in LQ45 index like UNVR, MBMA, and SIDO dropped as the market rose. UNVR closed at Rp 2,800, down by 2.10%, with a total transaction value of Rp 43.30 billion and a P/E ratio of 18.82x. Similarly, MBMA saw a 2.29% decline, closing at Rp 640, and SIDO ended at Rp 725 per share, down by 2.03%."]
+body = ["GoTo, a merger between Gojek and Tokopedia, has absorbed nearly 80% of its IPO funds, amounting to Rp10.76 trillion by the end of June 2024. The company has generated a net proceeds of Rp13.5 trillion during its IPO in 2022, leaving Rp2.81 trillion remaining for operational and strategic purposes, including investments in companies like Gopay and Velox Digital.",
+"PT. Bank Raya Indonesia Tbk has scheduled a share buyback with a budget of IDR 20 billion, pending approval from shareholders on August 21, 2024, aiming to increase employee engagement in the company without affecting business operations. The buyback will be funded from internal cash, and the number of shares to be repurchased has not been disclosed, projected to be below 10% of the issued paid-up capital.",
+"PT Bank Syariah Indonesia (BSI) has made it to the top 5 state-owned enterprises with the largest market capitalization in Indonesia, reaching Rp116 trillion in July 2024. BSI's success is attributed to its inclusive, modern, and digital approach, with positive financial performance including distributing Rp855.56 billion cash dividends in 2023 and achieving a Rp1.71 trillion profit in Q1 2024 driven by robust growth in third-party funds and mobile banking transactions.",
+"Hary Tanoesoedibjo has rescued MNC Asia Holding by acquiring 26 million shares at Rp50 each, investing a total of Rp1.3 billion. Following the purchase, Tanoesoedibjo's portfolio now holds 2.59 billion shares, a 3.1% increase from before the transaction.",
+"Stocks in LQ45 index like UNVR, MBMA, and SIDO dropped as the market rose. UNVR closed at Rp 2,800, down by 2.10%, with a total transaction value of Rp 43.30 billion and a P/E ratio of 18.82x. Similarly, MBMA saw a 2.29% decline, closing at Rp 640, and SIDO ended at Rp 725 per share, down by 2.03%."]
 
-# for text in body:
-#   print("TEXT:")
-#   print(text)
-#   print("CLASSIFIED TICKERS:")
-#   print(get_tickers(text))
-#   print("CLASSIFIED TAGS METHOD 1")
-#   print(get_tags_chat(text))
-#   print("CLASSIFIED SUBSECTOR METHOD 1")
-#   print(get_subsector_chat(text))
-#   # print("CLASSIFIED TAGS METHOD 2")
-#   # print(get_tags_embeddings(text))
-#   # print("CLASSIFIED SUBSECTOR METHOD 2")
-#   # print(get_subsector_embeddings(text))
-#   print("CLASSIFIED SENTIMENT")
-#   print(get_sentiment_chat(text))
-#   print("")
+for text in body:
+  print("TEXT:")
+  print(text)
+  print("CLASSIFIED TICKERS:")
+  print(get_tickers(text))
+  print("CLASSIFIED TAGS METHOD 1")
+  print(get_tags_chat(text))
+  print("CLASSIFIED SUBSECTOR METHOD 1")
+  print(get_subsector_chat(text))
+  # print("CLASSIFIED TAGS METHOD 2")
+  # print(get_tags_embeddings(text))
+  # print("CLASSIFIED SUBSECTOR METHOD 2")
+  # print(get_subsector_embeddings(text))
+  print("CLASSIFIED SENTIMENT")
+  print(get_sentiment_chat(text))
+  print("")
 
 # Result
 # Tickers belum konsisten
