@@ -26,10 +26,6 @@ class LLMCollection:
                 Groq(
                     model="gemma2-9b-it",
                     api_key=os.getenv('GROQ_API_KEY'),
-                ),
-                Groq(
-                    model="llama-3.1-70b-versatile",
-                    api_key=os.getenv('GROQ_API_KEY'),
                 )
             ]
         return cls._instance

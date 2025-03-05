@@ -69,20 +69,31 @@ def load_tag_data():
 # Ticker and Company name data, renew in date 1, 15 from supabase
 # @Private method
 def load_company_data():
-    if datetime.today().day in [1, 15] or True:
+    if datetime.today().day in [1, 15]:
         response = (
-            supabase.table("idx_company_report")
-            .select("symbol, company_name, sub_sector")
+            supabase.table("idx_company_profile")
+            .select("symbol, company_name, sub_sector_id")
             .execute()
         )
 
+        subsector_response = (
+            supabase.table("idx_subsector_metadata")
+            .select("sub_sector_id, sub_sector")
+            .execute()
+        )
+        
+        subsector_data = {}
+        
+        for row in subsector_response.data:
+            subsector_data[row["sub_sector_id"]] = row["sub_sector"]
+        
         company = {}
 
         for row in response.data:
             company[row["symbol"]] = {
                 "symbol": row["symbol"],
                 "name": row["company_name"],
-                "sub_sector": row["sub_sector"],
+                "sub_sector": subsector_data[row["sub_sector_id"]],
             }
 
         # with open("./data/companies.json", "w") as f:
@@ -148,7 +159,7 @@ def classify_llama(body, category):
     ONLY USE the tickers listed above. DO NOT infer or create tickers that are not explicitly provided.
 
     ### **Ticker Extraction Rules:**
-    - Identify **all tickers** present in the article.
+    - Identify all tickers that are **explicitly mentioned** in the article.
     - If no tickers are found, return an **empty string ("")**.
     - **Do NOT** modify, infer, or abbreviate ticker symbols.
 
@@ -219,7 +230,7 @@ def classify_llama(body, category):
 
             # Filter output
             if category == "tags":
-                outputs = [e.lower() for e in outputs if e in tags]
+                outputs = [e for e in outputs if e in tags]
                 
             print(category, outputs)
             return outputs
@@ -233,7 +244,7 @@ def identify_company_names(body):
     # print(body)
     prompt_name = f"""
     ### **Company Name Extraction**
-    Identify all company names mentioned in the article.
+    Identify all company names that are explicitly mentioned in the article.
 
     ### **Extraction Rules:**
     - Extract full company names without abbreviations.
@@ -267,7 +278,7 @@ def identify_company_names(body):
             print(f"[ERROR] LLM failed: {e}")
     # print("company names groq", company_names)
     for name in company_names:
-        if name not in company_names_list:
+        if name not in company_names_list and name != "":
             company_names_list.append(name.strip())
     print("final list", company_names_list)
     return company_names_list
@@ -277,10 +288,11 @@ def identify_company_names(body):
 def match_ticker_codes(company_names, company_data):
     matched_tickers = []
     for name in company_names:
-        for ticker, info in company_data.items():
-            if name.lower() in info["name"].lower() or name.lower() == ticker.split()[0].lower():
-                if ticker not in matched_tickers:
-                    matched_tickers.append(ticker)
+        if name != "":
+            for ticker, info in company_data.items():
+                if name.lower() in info["name"].lower() or name.lower() == ticker.split()[0].lower():
+                    if ticker not in matched_tickers:
+                        matched_tickers.append(ticker)
     return matched_tickers
 
 
@@ -316,9 +328,11 @@ def preprocess_text(text):
 # @Public method
 def get_tickers(text):
     company_names = identify_company_names(text)
+    print("company names", company_names)
     company = load_company_data()
-    return match_ticker_codes(company_names, company)
-
+    tickers = match_ticker_codes(company_names, company)
+    print("returned tickers", tickers)
+    return tickers
 
 # @Public method
 def get_tags_chat(text, preprocess=True):
