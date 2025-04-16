@@ -101,7 +101,7 @@ def extract_info(text):
       article_info["price_transaction"]["amount_transacted"] = amount_transacted
   return article_info
 
-def generate_article_filings(pdf_url, sub_sector, holder_type, data):
+def generate_article_filings(pdf_url, sub_sector, holder_type, data, uid=None):
   # Handle for POST pdf
   article = {
     "title": "",
@@ -124,7 +124,8 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data):
     "price_transaction": {
       "prices": [],
       "amount_transacted": []
-    }
+    },
+    "UID": uid
   }
 
   pdf_text = data

@@ -14,6 +14,9 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 from goose3 import Goose
 from requests import Response, Session
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from pydantic import BaseModel
 
 # NLTK download
 nltk.data.path.append('./nltk_data')
@@ -36,18 +39,40 @@ HEADERS = {
     'x-test': 'true',
 }
 
-def summarize_llama(body, category):
-    prompt = {
-        "body": "Provide a concise, easily readable, maximum 2 sentences 150 tokens summary of the news article, highlighting the main points, key events, and any significant outcomes that focuses on financial metrics, excluding unnecessary details, filtering noises in article. Also capture the main essence of the news. Additionally, for every mentioned company name in the format of 'Company Name (TICKER)', write it as it is. (Give body summary without intro)",
-        "title": "Provide a one sentence title for the news article, that is not misleading and should give a general understanding of the article. (Give title without quotation mark)"
-    }
 
+class NewsOutput(BaseModel):
+    title: str
+    body: str
+
+def summarize_llama(body):
+    # Define JSON schema for output
+    json_parser = JsonOutputParser(pydantic_object=NewsOutput)
+
+    # Create a combined prompt template
+    prompt_template = ChatPromptTemplate.from_template(
+        """Analyze this news article and provide both a title and summary.
+        For the title: Create a one sentence title that is not misleading and gives general understanding.
+        For the body: Provide a concise, maximum 2 sentences summary highlighting main points, key events, and financial metrics.
+        For company mentions, maintain the format 'Company Name (TICKER)'.
+
+        News: {text}
+
+        {format_instructions}
+        """
+    )
+
+    # Create chain with the first available LLM
     for llm in llmcollection.get_llms():
         try:
-            output = str(llm.complete(prompt[category] + f"\n\nNews: {body}")).split("\n")[-1]
-            return output
+            chain = prompt_template | llm | json_parser
+            response = chain.invoke({
+                "text": body,
+                "format_instructions": json_parser.get_format_instructions()
+            })
+            return response
         except Exception as e:
             print(f"[ERROR] LLM failed with error: {e}")
+            continue
 
 def preprocess_text(news_text):
     # Remove parenthesis
@@ -112,10 +137,9 @@ def summarize_news(url: str):
     news_text = get_article_body(url)
     if len(news_text) > 0:
         news_text = preprocess_text(news_text)
-        summary = summarize_llama(news_text, "body")
-        title = summarize_llama(news_text, "title")
+        response = summarize_llama(news_text)
 
-        return title, summary
+        return response["title"], response["body"]
     else:
         return "", ""
     

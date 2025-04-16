@@ -252,7 +252,7 @@ A high quality news article is one that is:
 
    for llm in llmcollection.get_llms():
         try:
-            output = str(llm.complete(prompt)).split(" ")[0]
+            output = str(llm.invoke(prompt).content).split(" ")[0]
             if output.isdigit():
                return int(output)
             else:   

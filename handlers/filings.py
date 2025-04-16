@@ -43,11 +43,13 @@ def add_pdf_article():
     # Either Insider or Institution
     type = request.form["holder_type"] if "holder_type" in request.form else ""
     type = type if type.lower() == "insider" or type.lower() == "insitution" else ""
+    
+    uid = request.form["uid"] if "uid" in request.form else request.form["UID"] if "UID" in request.form else None
 
     if file and file.filename.lower().endswith(".pdf"):
         file_path = save_file(file, current_app.config["UPLOAD_FOLDER"])
         text = extract_from_pdf(file_path)
-        text = generate_article_filings(source, sub_sector, type, text)
+        text = generate_article_filings(source, sub_sector, type, text, uid)
         os.remove(file_path)
 
         try:
@@ -160,6 +162,7 @@ def sanitize_filing(data):
     amount_transaction = abs(holding_before - holding_after)
     price_transaction = data.get("price_transaction")
     price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
+    uid = data.get("uid") if data.get("uid") else None
 
     ticker_list = ticker.split(".")
     if len(ticker_list) > 1:
@@ -189,7 +192,8 @@ def sanitize_filing(data):
         "holder_name": holder_name,
         "price_transaction": price_transaction,
         "price": price,
-        "transaction_value": transaction_value 
+        "transaction_value": transaction_value, 
+        "UID": uid
     }
     new_title, new_body = summarize_filing(new_article)
 
@@ -245,6 +249,7 @@ def sanitize_filing_article(data, generate=True):
     price_transaction = data.get("price_transaction")
     
     price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
+    uid = data.get("uid") if data.get("uid") else None
 
     new_article = {
         "title": title,
@@ -263,7 +268,8 @@ def sanitize_filing_article(data, generate=True):
         "holder_name": holder_name,
         "price": price,
         "transaction_value": transaction_value,
-        "price_transaction": price_transaction
+        "price_transaction": price_transaction,
+        "UID": uid
     }
 
     if generate:
@@ -314,12 +320,54 @@ def update_insider_trading_supabase(data):
 
     @return Dictionary containing the status and updated record data.
     """
+    old_article = supabase.table("idx_filings").select("*").eq("id", data.get("id")).execute()
     new_article = sanitize_filing_article(data, generate=False)
     record_id = data.get("id")
-
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
-
+    
+    # Compare old and new article data
+    if old_article.data:
+        old_data = old_article.data[0]
+        changes = {}
+        
+        for key in ['price_transaction']:
+            if old_data.get(key) != new_article.get(key):
+                changes[key] = {
+                    'old': old_data.get(key),
+                    'new': new_article.get(key)
+                }
+        if changes:
+            print(f"Data changes detected: {changes}")
+    
+    # Check for UID and price_transaction changes
+    if new_article.get('UID') and 'price_transaction' in changes:
+        # Get paired data with same UID
+        paired_data = supabase.table("idx_filings").select("*").eq("UID", new_article['UID']).execute()
+        
+        if len(paired_data.data) == 2:  # Ensure exactly two records exist
+            # Update price_transaction for both records
+            for record in paired_data.data:
+                if record['id'] != record_id:  # Update the paired record
+                    other_article = record.copy()
+                    other_article['price_transaction'] = new_article['price_transaction']
+                    price, transaction_value = PriceTransaction(
+                        other_article['price_transaction']['amount_transacted'],
+                        other_article['price_transaction']['prices']
+                    ).get_price_transaction_value()
+                    other_article['price'] = price
+                    other_article['transaction_value'] = transaction_value
+                    
+                    supabase.table("idx_filings").update(other_article).eq("id", record['id']).execute()
+            
+            # Recalculate price and transaction_value for current record
+            price, transaction_value = PriceTransaction(
+                new_article['price_transaction']['amount_transacted'],
+                new_article['price_transaction']['prices']
+            ).get_price_transaction_value()
+            new_article['price'] = price
+            new_article['transaction_value'] = transaction_value
+    
     response = (
         supabase.table("idx_filings")
         .update(new_article)

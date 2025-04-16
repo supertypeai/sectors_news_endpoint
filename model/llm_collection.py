@@ -1,6 +1,7 @@
 import os
 from llama_index.llms.groq import Groq
 import dotenv
+from langchain.chat_models import init_chat_model
 
 dotenv.load_dotenv()
 
@@ -19,13 +20,13 @@ class LLMCollection:
         if cls._instance is None:
             cls._instance = super(LLMCollection, cls).__new__(cls)
             cls._instance._llms = [
-                Groq(
-                    model="llama3-70b-8192",
-                    api_key=os.getenv('GROQ_API_KEY'),
+                init_chat_model(
+                    "llama3-70b-8192",
+                    model_provider="groq"
                 ),
-                Groq(
-                    model="gemma2-9b-it",
-                    api_key=os.getenv('GROQ_API_KEY'),
+                init_chat_model(
+                    "deepseek-r1-distill-llama-70b",
+                    model_provider="groq",
                 )
             ]
         return cls._instance

@@ -16,6 +16,10 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import string
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from pydantic import BaseModel, Field
+from typing import List
 
 
 # OPTIONS
@@ -223,7 +227,7 @@ def classify_llama(body, category):
     # Prompt the LLM
     for llm in llmcollection.get_llms():
         try:
-            outputs = llm.complete(prompt[category])
+            outputs = llm.invoke(prompt[category]).content
             # Clean output
             outputs = str(outputs).split(",")
             outputs = [out.strip() for out in outputs if out.strip()]
@@ -241,8 +245,16 @@ def classify_llama(body, category):
 # Identify the companies in the article
 # @Private method
 def identify_company_names(body):
-    # print(body)
-    prompt_name = f"""
+
+    # Define the expected output schema
+    class CompanyNamesOutput(BaseModel):
+        company_names: List[str] = Field(description="List of company names extracted from the article")
+
+    # Create output parser
+    parser = JsonOutputParser(pydantic_object=CompanyNamesOutput)
+
+    # Create prompt template
+    template = """
     ### **Company Name Extraction**
     Identify all company names that are explicitly mentioned in the article.
 
@@ -251,35 +263,39 @@ def identify_company_names(body):
     - If a company name includes **"PT."**, omit **"PT."** and return only the full company name.
     - If a company name includes **"Tbk"**, omit **"Tbk"** and return only the full company name.
     - Example: **PT. Antara Business Service Tbk (ABS)** → `"Antara Business Service"`
-    - If no company names are found, return an **empty string ("")**.
+    - If no company names are found, return an empty list.
 
     ### **Response Format:**
-    - Output company names as a **comma-separated list** (e.g., `Company A, Company B, Company C`).
-    - If no company names are found, return `""`.
-    - **Do NOT** include explanations, additional words, or formatting.
-    - **Do NOT** include string formats such as \\n or \\t.
+    {format_instructions}
 
     ---
     #### **Article Content:**
     {body}
     """
 
-    # company_names = response.choices[0].message.content.strip().split(",")
-    # # print("company names openai", company_names)
-    # company_names_list = [name.strip() for name in company_names if name.strip()]
-    # # print("company names list", company_names_list)
-    
+    prompt = ChatPromptTemplate.from_template(template=template)
+
+    # Format the prompt with parser instructions
+    messages = prompt.format_messages(
+        body=body,
+        format_instructions=parser.get_format_instructions()
+    )
+
     company_names_list = []
     
     for llm in llmcollection.get_llms():
         try:
-            company_names = str(llm.complete(prompt_name)).split(",")
+            output = llm.invoke(messages[0].content)
+            # print(output)
+            parsed_output = parser.parse(output.content)
+            # print(parsed_output)
+            company_names_list = parsed_output["company_names"]
+            # print(company_names_list)
+            break
         except Exception as e:
             print(f"[ERROR] LLM failed: {e}")
-    # print("company names groq", company_names)
-    for name in company_names:
-        if name not in company_names_list and name != "":
-            company_names_list.append(name.strip())
+            continue
+
     print("final list", company_names_list)
     return company_names_list
 
@@ -417,7 +433,7 @@ def predict_dimension(title: str, article: str):
             }
     for llm in llmcollection.get_llms():
         try:
-            outputs = llm.complete(prompt)
+            outputs = llm.invoke(prompt).content
 
             result = {
                 "valuation": None,
@@ -430,7 +446,7 @@ def predict_dimension(title: str, article: str):
                 "sustainability": None,
             }
 
-            for line in outputs.text.splitlines():
+            for line in outputs.splitlines():
                 item = line.split(":")
                 key = item[0].strip()
                 try:
