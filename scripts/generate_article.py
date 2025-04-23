@@ -48,6 +48,9 @@ def extract_info(text):
     "transactions": [],
     "shareholding_before": "",
     "shareholding_after": "",
+    "share_percentage_before": "",
+    "share_percentage_after": "",
+    "share_percentage_transaction": "",
     "purpose": "",
     "date_time": "",
     "price": 0,
@@ -74,6 +77,12 @@ def extract_info(text):
       article_info["shareholding_before"] = line.split()[-1]
     if "Jumlah Saham Setelah Transaksi" in line:
       article_info["shareholding_after"] = line.split()[-1]
+    if "Persentase Saham Sebelum Transaksi" in line:
+      article_info["share_percentage_before"] = line.split()[-1]
+    if "Persentase Saham Sesudah Transaksi" in line:
+      article_info["share_percentage_after"] = line.split()[-1]
+    if "Persentase Saham yang ditransaksi" in line:
+      article_info["share_percentage_transaction"] = line.split()[-1]
     if "Tujuan Transaksi" in line:
       article_info["purpose"] = " ".join(line.split()[2:])
     if "Tanggal dan Waktu" in line or "Date and Time" in line:
@@ -116,6 +125,9 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data, uid=None):
     "holder_type": holder_type,
     "holding_before": 0,
     "holding_after": 0,
+    "share_percentage_before": 0,
+    "share_percentage_after": 0,
+    "share_percentage_transaction": 0,
     "amount_transaction": 0,
     "holder_name": "",
     "purpose": "",
@@ -141,6 +153,9 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data, uid=None):
   article['timestamp']  = datetime.strptime(article['timestamp'], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
   article['holding_before'] = int("".join(article_info['shareholding_before'].split(".")))
   article['holding_after'] = int("".join(article_info['shareholding_after'].split(".")))
+  article['share_percentage_before'] = float(article_info['share_percentage_before'].replace(",", ".").replace("%", ""))
+  article['share_percentage_after'] = float(article_info['share_percentage_after'].replace(",", ".").replace("%", ""))
+  article['share_percentage_transaction'] = float(article_info['share_percentage_transaction'].replace(",", ".").replace("%", ""))
   article['transaction_type'] = ('buy' if article['holding_before'] < article['holding_after'] else 'sell')
   article['amount_transaction'] = abs(article['holding_before'] - article['holding_after'])
   article['holder_name'] = article_info['holder_name']

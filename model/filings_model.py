@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 class Filing:
-    def __init__(self, title, body, source, timestamp, sector, sub_sector, tags, tickers, transaction_type, holder_type, holding_before, holding_after, amount_transaction, holder_name, price, transaction_value, price_transaction, uid=None):
+    def __init__(self, title, body, source, timestamp, sector, sub_sector, tags, tickers, transaction_type, holder_type, holding_before, holding_after, share_percentage_before, share_percentage_after, share_percentage_transaction, amount_transaction, holder_name, price, transaction_value, price_transaction, UID=None):
         """
         Initializes the Filing object.
 
@@ -18,6 +18,9 @@ class Filing:
         @param holder_type: Type of the holder.
         @param holding_before: Holding amount before the transaction.
         @param holding_after: Holding amount after the transaction.
+        @param share_percentage_before: Share percentage before the transaction.
+        @param share_percentage_after: Share percentage after the transaction.
+        @param share_percentage_transaction: Share percentage of the transaction.
         @param amount_transaction: Amount of the transaction.
         @param holder_name: Name of the holder.
         @param price: Price of the transaction.
@@ -37,12 +40,15 @@ class Filing:
         self.holder_type = holder_type
         self.holding_before = holding_before
         self.holding_after = holding_after
+        self.share_percentage_before = share_percentage_before
+        self.share_percentage_after = share_percentage_after
+        self.share_percentage_transaction = share_percentage_transaction
         self.amount_transaction = amount_transaction
         self.holder_name = holder_name
         self.price = price
         self.transaction_value = transaction_value
         self.price_transaction = price_transaction
-        self.UID = uid
+        self.UID = UID
 
     def to_json(self):
         """

@@ -150,6 +150,9 @@ def sanitize_filing(data):
     control_status = data.get("control_status").strip() if data.get("control_status") else ""
     holding_before = data.get("holding_before")
     holding_after = data.get("holding_after")
+    share_percentage_before = data.get("share_percentage_before")
+    share_percentage_after = data.get("share_percentage_after")
+    share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
     sub_sector = (
         data.get("sub_sector").strip()
         if data.get("sub_sector")
@@ -162,7 +165,7 @@ def sanitize_filing(data):
     amount_transaction = abs(holding_before - holding_after)
     price_transaction = data.get("price_transaction")
     price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
-    uid = data.get("uid") if data.get("uid") else None
+    uid = data.get("uid") if data.get("uid") else data.get("UID") if data.get("UID") else None
 
     ticker_list = ticker.split(".")
     if len(ticker_list) > 1:
@@ -188,6 +191,9 @@ def sanitize_filing(data):
         "holder_type": holder_type,
         "holding_before": holding_before,
         "holding_after": holding_after,
+        "share_percentage_before": share_percentage_before,
+        "share_percentage_after": share_percentage_after,
+        "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
         "price_transaction": price_transaction,
@@ -242,6 +248,9 @@ def sanitize_filing_article(data, generate=True):
     tickers = data.get("tickers", [])
     holding_before = data.get("holding_before")
     holding_after = data.get("holding_after")
+    share_percentage_before = data.get("share_percentage_before")
+    share_percentage_after = data.get("share_percentage_after")
+    share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
     holder_type = data.get("holder_type")
     transaction_type = "buy" if holding_before < holding_after else "sell"
     amount_transaction = abs(holding_before - holding_after)
@@ -249,7 +258,7 @@ def sanitize_filing_article(data, generate=True):
     price_transaction = data.get("price_transaction")
     
     price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
-    uid = data.get("uid") if data.get("uid") else None
+    uid = data.get("uid") if data.get("uid") else data.get("UID") if data.get("UID") else None
 
     new_article = {
         "title": title,
@@ -264,6 +273,9 @@ def sanitize_filing_article(data, generate=True):
         "holder_type": holder_type,
         "holding_before": holding_before,
         "holding_after": holding_after,
+        "share_percentage_before": share_percentage_before,
+        "share_percentage_after": share_percentage_after,
+        "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
         "price": price,
