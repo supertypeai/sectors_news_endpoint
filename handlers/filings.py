@@ -112,6 +112,11 @@ def delete_insider_trading():
     """
     input_data = request.get_json()
     id_list = input_data.get("id_list")
+    response = supabase.table("idx_filings").select("UID").in_("id", id_list).not_.is_("UID", None).execute()
+    if response.data:
+        uids = [row["UID"] for row in response.data if row["UID"]]
+        if uids:
+            supabase.table("idx_filings").delete().in_("UID", uids).execute()
     supabase.table("idx_filings").delete().in_("id", id_list).execute()
     return jsonify({"status": "success", "message": "Deleted"}), 200
 
@@ -314,14 +319,24 @@ def insert_insider_trading_supabase(data, format=True):
         new_article = sanitize_filing(data)
     else:
         new_article = sanitize_filing_article(data, generate=False)
+        
+    news = True
     
-    news_article = News.from_filing(Filing(**new_article))
-    response_news = supabase.table("idx_news").insert(news_article.__dict__).execute()
+    # Check if UID already exists
+    if new_article.get('UID'):
+        existing = supabase.table("idx_filings").select("*").eq("UID", new_article['UID']).execute()
+        if existing.data:
+            news = False
+    
+    if news:    
+        news_article = News.from_filing(Filing(**new_article))
+        response_news = supabase.table("idx_news").insert(news_article.__dict__).execute()
     response = supabase.table("idx_filings").insert(new_article).execute()
     
-    
-    return {"status": "success", "id_filings": response.data[0]["id"], "id_news": response_news.data[0]["id"], "status_code": 200}
-
+    if news:
+        return {"status": "success", "id_filings": response.data[0]["id"], "id_news": response_news.data[0]["id"], "status_code": 200}
+    else:
+        return {"status": "success", "id_filings": response.data[0]["id"], "status_code": 200}
 
 def update_insider_trading_supabase(data):
     """
