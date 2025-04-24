@@ -385,6 +385,8 @@ def update_insider_trading_supabase(data):
                     other_article['price'] = price
                     other_article['transaction_value'] = transaction_value
                     
+                    other_article['amount_transaction'] = new_article['amount_transaction']
+                    
                     supabase.table("idx_filings").update(other_article).eq("id", record['id']).execute()
             
             # Recalculate price and transaction_value for current record
