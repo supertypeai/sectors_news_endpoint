@@ -209,7 +209,7 @@ def classify_llama(body, category):
     - **"neutral"** → Indicates a balanced or uncertain outlook.
 
     ### **Response Format:**
-    - Output **ONLY** one word: `"bullish"`, `"bearish"`, or `"neutral"`.
+    - Output **ONLY** one word: `"Bullish"`, `"Bearish"`, or `"Neutral"`.
     - **Do NOT** include explanations, additional words, or formatting.
 
     ---
@@ -228,13 +228,16 @@ def classify_llama(body, category):
     for llm in llmcollection.get_llms():
         try:
             outputs = llm.invoke(prompt[category]).content
+            if "<think>" in outputs and "</think>\n\n" in outputs:
+                outputs = outputs.split("</think>\n\n")[1].strip()
             # Clean output
             outputs = str(outputs).split(",")
             outputs = [out.strip() for out in outputs if out.strip()]
 
             # Filter output
             if category == "tags":
-                outputs = [e for e in outputs if e in tags]
+                seen = set()
+                outputs = [e for e in outputs if e in tags and not (e in seen or seen.add(e))]
                 
             print(category, outputs)
             return outputs

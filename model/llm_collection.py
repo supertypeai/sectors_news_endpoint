@@ -21,12 +21,12 @@ class LLMCollection:
             cls._instance = super(LLMCollection, cls).__new__(cls)
             cls._instance._llms = [
                 init_chat_model(
-                    "llama3-70b-8192",
-                    model_provider="groq"
-                ),
-                init_chat_model(
                     "deepseek-r1-distill-llama-70b",
                     model_provider="groq",
+                ),
+                init_chat_model(
+                    "llama3-70b-8192",
+                    model_provider="groq"
                 )
             ]
         return cls._instance
