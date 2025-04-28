@@ -187,7 +187,20 @@ def generate_article_filings(pdf_url, sub_sector, holder_type, data, uid=None):
   
   # with open('./generated.json', 'w') as f:
   #   json.dump(article, f, indent=2)
-    
+
+  if len(article['sub_sector']) == 0:
+    try:
+      with open('./data/companies.json', 'r') as f:
+        companies = json.load(f)
+        ticker = article['tickers'][0]
+        if ticker in companies:
+          article['sub_sector'] = companies[ticker]['sub_sector']
+    except (FileNotFoundError, KeyError, IndexError):
+      pass
+  
+  if len(article['sector']) == 0 and article['sub_sector'] in sectors_data:
+    article['sector'] = sectors_data[article['sub_sector']]
+  
   if "purpose" in article:
     del article["purpose"]
   return article
