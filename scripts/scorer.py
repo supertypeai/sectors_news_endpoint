@@ -192,8 +192,8 @@ Bonus Criteria for High-Quality News (Additional Points)
 1. Primary CTA (Up to 5 Points Each):
    - Does the article mention any of the following?
      - Dividend rate + cum date (+5 points)
-     - Policy/Bill Passing (especially if it’s eyeball-catching) (+5 points)
-     - Insider trading (especially if it’s eyeball-catching) (+5 points)
+     - Policy/Bill Passing (especially if it's eyeball-catching) (+5 points)
+     - Insider trading (especially if it's eyeball-catching) (+5 points)
      - Acquisition/Merging (+5 points)
      - Launching of a new company business plan (new project/income source/new partner/new contract) (+5 points)
      - Earnings Report (+5 points)
@@ -213,28 +213,28 @@ Total Score:
 
 Standard Scores for Example Articles
 
-0 Score: The article is outdated, from an unknown source, poorly structured, has no relevance to the IDX, lacks analysis, financial data, or any market impact, and does not mention any CTA. Example: “Some company in Asia made a move.”
+0 Score: The article is outdated, from an unknown source, poorly structured, has no relevance to the IDX, lacks analysis, financial data, or any market impact, and does not mention any CTA. Example: "Some company in Asia made a move."
 
-25 Score: The article is from a moderately credible source, somewhat recent, with basic relevance to the IDX but lacks depth, analysis, or financial data. It’s somewhat organized but still vague. Example: “PT X acquired 20% of PT Y.”
+25 Score: The article is from a moderately credible source, somewhat recent, with basic relevance to the IDX but lacks depth, analysis, or financial data. It's somewhat organized but still vague. Example: "PT X acquired 20% of PT Y."
 
-50 Score: The article is recent, from a credible source, somewhat relevant to the IDX, provides basic analysis and financial data, and has a moderate impact on the market. It is organized and mentions some sector focus. Example: “PT X acquired 55% of PT Y, affecting the IDX slightly.”
+50 Score: The article is recent, from a credible source, somewhat relevant to the IDX, provides basic analysis and financial data, and has a moderate impact on the market. It is organized and mentions some sector focus. Example: "PT X acquired 55% of PT Y, affecting the IDX slightly."
 
-75 Score: The article is very recent, from a top-tier source, highly relevant to the IDX, offers detailed analysis, includes extensive financial data, and has a significant market impact. It is well-organized, balanced, and focuses on key sectors. Example: “PT X acquired 55% of PT Y, which is expected to significantly impact the IDX and the mining sector.”
+75 Score: The article is very recent, from a top-tier source, highly relevant to the IDX, offers detailed analysis, includes extensive financial data, and has a significant market impact. It is well-organized, balanced, and focuses on key sectors. Example: "PT X acquired 55% of PT Y, which is expected to significantly impact the IDX and the mining sector."
 
-80 Score: The article includes the above qualities plus mentions a Primary CTA like a new business plan, earnings report, or acquisition. It’s relevant, well-structured, with clear forward-looking statements. Example: “PT X’s acquisition of PT Y and their new strategic partnership is expected to double their earnings next quarter.”
+80 Score: The article includes the above qualities plus mentions a Primary CTA like a new business plan, earnings report, or acquisition. It's relevant, well-structured, with clear forward-looking statements. Example: "PT X's acquisition of PT Y and their new strategic partnership is expected to double their earnings next quarter."
 
-90 Score: The article is highly detailed, with extensive analysis, financial data, balanced reporting, and multiple Primary CTAs like dividends, acquisitions, and earnings reports. Example: “PT X’s acquisition of PT Y, coupled with their new dividend policy, is expected to significantly boost their stock price and impact the IDX.”
+90 Score: The article is highly detailed, with extensive analysis, financial data, balanced reporting, and multiple Primary CTAs like dividends, acquisitions, and earnings reports. Example: "PT X's acquisition of PT Y, coupled with their new dividend policy, is expected to significantly boost their stock price and impact the IDX."
 
-95 Score: The article includes all the above qualities, with additional insight into long-term market impacts, multiple sector focuses, and comprehensive forward-looking statements. Example: “PT X’s strategic acquisition and upcoming merger, along with their new dividend policy, are projected to drive long-term growth in the Indonesian market.”
+95 Score: The article includes all the above qualities, with additional insight into long-term market impacts, multiple sector focuses, and comprehensive forward-looking statements. Example: "PT X's strategic acquisition and upcoming merger, along with their new dividend policy, are projected to drive long-term growth in the Indonesian market."
 
-100 Score: The article is from a top-tier source, published within the last 24 hours, covers multiple Primary and Secondary CTAs, offers in-depth analysis with detailed financial metrics, balanced reporting, comprehensive forward-looking statements, and discusses immediate and long-term market impacts. Example: “PT X’s acquisition of PT Y, insider trading activities, new strategic projects, and a 20% increase in dividends, will likely lead to a significant uptick in the IDX over the next year.
+100 Score: The article is from a top-tier source, published within the last 24 hours, covers multiple Primary and Secondary CTAs, offers in-depth analysis with detailed financial metrics, balanced reporting, comprehensive forward-looking statements, and discusses immediate and long-term market impacts. Example: "PT X's acquisition of PT Y, insider trading activities, new strategic projects, and a 20% increase in dividends, will likely lead to a significant uptick in the IDX over the next year.
 
 A high quality news article is one that is:
 1. actionable
 2. commercially valuable (request for proposal on a new coal site)
 3. big movement of money (merger and acquisitions, large insider purchase etc)
 4. potential big changes for market cap in the industry
-”
+"
 '''
   
    prompt = f"""
@@ -246,7 +246,7 @@ A high quality news article is one that is:
    Given the scoring criteria of a news article with relevance to the Indonesia Stock Market. 
    {criteria} 
    
-   Answer only with the score, example: 100
+   Answer without additional explanation and format. Give the score as a number between 0 and 100.
    
    If no article is given, give it a score of 0"""
 
