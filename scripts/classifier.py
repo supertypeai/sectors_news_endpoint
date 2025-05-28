@@ -202,6 +202,54 @@ class NewsClassifier:
         tokens = [lemmatizer.lemmatize(word) for word in tokens]
         return " ".join(tokens)
 
+    def _classify_llama(
+        self, body: str, category: str, title: str = ""
+    ) -> Union[List[str], str]:
+        """
+        Synchronous wrapper for _classify_llama_async.
+
+        Args:
+            body (str): Text to classify
+            category (str): Category to classify into
+            title (str): Article title (required for dimension category)
+
+        Returns:
+            Union[List[str], str]: Classification results
+        """
+        import asyncio
+
+        try:
+            # Check if there's already a running event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, create a new thread to run the async code
+            import concurrent.futures
+            import threading
+
+            def run_async():
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(
+                        self._classify_llama_async(body, category, title)
+                    )
+                finally:
+                    new_loop.close()
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_async)
+                return future.result()
+
+        except RuntimeError:
+            # No event loop running, we can create one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(
+                    self._classify_llama_async(body, category, title)
+                )
+            finally:
+                loop.close()
+
     async def _classify_llama_async(
         self, body: str, category: str, title: str = ""
     ) -> Union[List[str], str]:
