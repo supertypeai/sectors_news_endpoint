@@ -5,3 +5,4 @@ update_script.py
 __pycache__
 temp/*
 venv/*
+.venv
