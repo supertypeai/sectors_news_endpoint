@@ -19,6 +19,9 @@ from scripts.classifier import (
 from model.news_model import News
 import pytz
 import asyncio
+import uuid
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 timezone = pytz.timezone("Asia/Bangkok")
 
@@ -27,6 +30,11 @@ SECTORS_DATA = sectors_data
 
 # Initialize the classifier
 classifier = NewsClassifier()
+
+# In-memory store for batch tasks and thread pool
+batch_tasks = {}
+executor = ThreadPoolExecutor(max_workers=4)
+batch_task_lock = threading.Lock()
 
 articles_module = Blueprint("articles", __name__)
 
@@ -153,6 +161,60 @@ def get_article_from_url():
     except Exception as e:
         print(f"[ERROR] Failed to generate article: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@articles_module.route("/url-articles/batch", methods=["POST"])
+@require_api_key
+def post_articles_from_urls_batch():
+    """
+    @API-function
+    @brief Post a batch of news articles from URLs for asynchronous processing.
+
+    @request-args
+    news-data: List of JSON objects, each with 'source' and 'timestamp'
+
+    @return JSON response with a task ID.
+    """
+    input_data = request.get_json()
+    if not isinstance(input_data, list):
+        return (
+            jsonify({"status": "error", "message": "Input must be a list of articles"}),
+            400,
+        )
+
+    task_id = str(uuid.uuid4())
+    with batch_task_lock:
+        batch_tasks[task_id] = {"status": "pending", "result": None}
+
+    # Run processing in a background thread using asyncio
+    thread = threading.Thread(target=run_async_processor, args=(task_id, input_data))
+    thread.start()
+
+    return jsonify({"status": "processing", "task_id": task_id}), 202
+
+
+@articles_module.route("/url-articles/batch/<task_id>", methods=["GET"])
+@require_api_key
+def get_batch_articles_status(task_id):
+    """
+    @API-function
+    @brief Get the status and result of a batch article processing task.
+
+    @request-args
+    task_id: str
+
+    @return JSON response with status and results if completed.
+    """
+    with batch_task_lock:
+        task = batch_tasks.get(task_id)
+
+    if not task:
+        return jsonify({"status": "error", "message": "Task not found"}), 404
+
+    if task["status"] == "completed":
+        return jsonify({"status": "completed", "result": task["result"]}), 200
+    else:
+        return jsonify({"status": "not ready"}), 202
 
 
 @articles_module.route("/url-article/post", methods=["POST"])
@@ -366,66 +428,84 @@ def sanitize_update(data):
     }
 
 
-def generate_article(data):
+def run_async_processor(task_id, articles_data):
+    """Helper to run the async processor in a new event loop."""
+    asyncio.run(process_batch_articles_async(task_id, articles_data))
+
+
+async def process_batch_articles_async(task_id, articles_data):
+    """
+    Processes a batch of articles from URLs asynchronously.
+    """
+    tasks = [generate_article_async(data) for data in articles_data]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    processed_results = []
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            source_url = articles_data[i].get("source", "unknown")
+            print(f"[ERROR] Failed to generate article for {source_url}: {result}")
+            processed_results.append({"source": source_url, "error": str(result)})
+        else:
+            processed_results.append(result.to_json())
+
+    with batch_task_lock:
+        batch_tasks[task_id]["status"] = "completed"
+        batch_tasks[task_id]["result"] = processed_results
+
+
+async def generate_article_async(data):
     """
     @helper-function
-    @brief Generate article from URL.
-
+    @brief Generate article from URL asynchronously.
     @param data source URL and timestamp.
-
     @return Generated article in News model.
     """
+    loop = asyncio.get_running_loop()
+    source = data.get("source").strip()
+
     try:
-        source = data.get("source").strip()
         timestamp_str = data.get("timestamp").strip()
         timestamp_str = timestamp_str.replace("T", " ")
         timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
 
-        new_article = {
-            "title": "",
-            "body": "",
-            "source": source,
-            "timestamp": timestamp.isoformat(),
-            "sector": "",
-            "sub_sector": [],
-            "tags": [],
-            "tickers": [],
-            "dimension": None,
-            "score": None,
-        }
-        new_article: News = News.from_json(json.dumps(new_article))
+        new_article = News(
+            title="",
+            body="",
+            source=source,
+            timestamp=timestamp.isoformat(),
+            sector="",
+            sub_sector=[],
+            tags=[],
+            tickers=[],
+            dimension=None,
+            score=None,
+        )
 
-        title, body = summarize_news(source)
+        # Run synchronous summarize_news in a thread pool
+        title, body = await loop.run_in_executor(executor, summarize_news, source)
 
         if len(body) > 0:
-            # Generate the metadata for the new article using async classification
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                tags, tickers, sub_sector_result, sentiment, dimension = (
-                    loop.run_until_complete(
-                        classifier.classify_article_async(title, body)
-                    )
-                )
-            finally:
-                loop.close()
+            (
+                tags,
+                tickers,
+                sub_sector_result,
+                sentiment,
+                dimension,
+            ) = await classifier.classify_article_async(title, body)
 
-            # Add sentiment to tags
             if sentiment and len(sentiment) > 0:
                 tags.append(sentiment[0])
 
-            # Check generated tickers
             checked_tickers = []
             valid_tickers = [COMPANY_DATA[ticker]["symbol"] for ticker in COMPANY_DATA]
             for ticker in tickers:
-                if ticker in valid_tickers or ticker + ".JK" in valid_tickers:
+                if ticker in valid_tickers or f"{ticker}.JK" in valid_tickers:
                     checked_tickers.append(ticker)
             tickers = checked_tickers
 
-            # If no ticker detected, use generated subsector
             if len(tickers) == 0 and sub_sector_result and len(sub_sector_result) > 0:
                 sub_sector = [sub_sector_result[0].lower()]
-            # If ticker detected, get the company's subsector
             else:
                 sub_sector = [
                     COMPANY_DATA[ticker]["sub_sector"]
@@ -434,9 +514,8 @@ def generate_article(data):
                 ]
 
             sector = ""
-
             for e in sub_sector:
-                if e in sectors_data.keys():
+                if e in sectors_data:
                     sector = sectors_data[e]
                     break
 
@@ -451,12 +530,11 @@ def generate_article(data):
 
         return new_article
     except Exception as e:
-        print(f"[ERROR] Error in generate_article: {e}")
-        # Return a minimal valid News object on error
+        print(f"[ERROR] Error in generate_article_async for source {source}: {e}")
         return News(
             title="Error processing article",
-            body="Failed to process article content",
-            source=data.get("source", ""),
+            body=f"Failed to process article content from {source}",
+            source=source,
             timestamp=datetime.now().isoformat(),
             sector="",
             sub_sector=[],
@@ -465,6 +543,18 @@ def generate_article(data):
             dimension=None,
             score=0,
         )
+
+
+def generate_article(data):
+    """
+    @helper-function
+    @brief Generate article from URL.
+
+    @param data source URL and timestamp.
+
+    @return Generated article in News model.
+    """
+    return asyncio.run(generate_article_async(data))
 
 
 def generate_stock_split_article(data_list):

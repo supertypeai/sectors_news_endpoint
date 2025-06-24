@@ -1,6 +1,7 @@
 import dotenv
 import logging
 import json
+from flasgger import Swagger
 
 dotenv.load_dotenv()
 
@@ -14,6 +15,7 @@ from handlers.subscription import subscription_module
 from handlers.support import log_request_info
 
 app = Flask(__name__)
+swagger = Swagger(app, template_file="openapi.yaml")
 app.register_blueprint(articles_module)
 app.register_blueprint(filings_module)
 app.register_blueprint(subscription_module)
@@ -24,20 +26,25 @@ app.config["UPLOAD_FOLDER"] = "/tmp"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+
 @app.before_request
 def log_request():
-    log_request_info(logging.INFO, f"Received {request.method} request to {request.path}")
-    
+    log_request_info(
+        logging.INFO, f"Received {request.method} request to {request.path}"
+    )
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     if isinstance(e, HTTPException):
         print(e.original_exception)
         response = e.get_response()
-        response.data = json.dumps({
-            "status":"error",
-            "message": str(e.original_exception),
-        })
+        response.data = json.dumps(
+            {
+                "status": "error",
+                "message": str(e.original_exception),
+            }
+        )
         response.content_type = "application/json"
 
         return response
@@ -48,10 +55,13 @@ def handle_exception(e):
 @app.route("/logs", methods=["GET"])
 @require_api_key
 def get_logs():
-    response = supabase.table("idx_news_logs").select("*").order("timestamp", desc=True).execute()
+    response = (
+        supabase.table("idx_news_logs")
+        .select("*")
+        .order("timestamp", desc=True)
+        .execute()
+    )
     return jsonify(response.data)
-
-
 
 
 if __name__ == "__main__":

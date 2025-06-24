@@ -16,6 +16,7 @@ import dotenv
 import requests
 from bs4 import BeautifulSoup
 from requests.exceptions import RequestException, Timeout, ConnectionError
+import concurrent.futures
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -54,24 +55,15 @@ class MetadataExtractor:
 
     def fetch(self, url: str) -> Optional[str]:
         """
-        Fetch HTML content from URL with robust error handling.
-
-        Args:
-            url (str): URL to fetch
-
-        Returns:
-            Optional[str]: HTML content or None if failed
+        Fetch HTML content from URL with robust error handling, offloading blocking I/O to a thread pool.
         """
         if not url or not isinstance(url, str):
             logger.error("Invalid URL provided")
             return None
 
-        try:
-            logger.info(f"Fetching content from: {url}")
-
-            # First attempt with proxy if available
-            if self.proxy_support:
-                try:
+        def _do_request(use_proxy: bool):
+            try:
+                if use_proxy and self.proxy_support:
                     response = requests.get(
                         url,
                         proxies=self.proxy_support,
@@ -82,29 +74,39 @@ class MetadataExtractor:
                     response.raise_for_status()
                     logger.info(f"Successfully fetched content from {url} (with proxy)")
                     return response.text
-                except (RequestException, Timeout, ConnectionError) as e:
+                else:
+                    response = requests.get(
+                        url, verify=False, timeout=self.timeout, headers=self.headers
+                    )
+                    response.raise_for_status()
+                    logger.info(f"Successfully fetched content from {url} (direct)")
+                    return response.text
+            except (RequestException, Timeout, ConnectionError) as e:
+                if use_proxy:
                     logger.warning(
                         f"Proxy request failed for {url}: {e}. Trying without proxy..."
                     )
+                else:
+                    logger.error(f"Request error fetching URL {url}: {e}")
+                return None
+            except Exception as e:
+                logger.error(f"Unexpected error fetching URL {url}: {e}")
+                return None
 
-            # Fallback to direct request
-            response = requests.get(
-                url, verify=False, timeout=self.timeout, headers=self.headers
-            )
-            response.raise_for_status()
-            logger.info(f"Successfully fetched content from {url} (direct)")
-            return response.text
-
-        except Timeout:
-            logger.error(f"Timeout fetching URL {url}")
-        except ConnectionError:
-            logger.error(f"Connection error fetching URL {url}")
-        except RequestException as e:
-            logger.error(f"Request error fetching URL {url}: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error fetching URL {url}: {e}")
-
-        return None
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future = None
+            if self.proxy_support:
+                # Try with proxy first
+                future = executor.submit(_do_request, True)
+                result = future.result()
+                if result is not None:
+                    return result
+                # Fallback to direct
+                future = executor.submit(_do_request, False)
+                return future.result()
+            else:
+                future = executor.submit(_do_request, False)
+                return future.result()
 
     def extract_metadata(self, url: str) -> Tuple[str, str]:
         """

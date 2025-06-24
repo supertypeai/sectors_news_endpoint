@@ -1,0 +1,1174 @@
+openapi: 3.0.3
+info:
+  title: Sectors News API
+  description: |
+    A comprehensive API for Indonesian stock market news processing, analysis, and management.
+
+    ## Features
+    - **News Article Processing**: Extract, classify, and score news articles from URLs
+    - **Insider Trading Filings**: Process PDF filings and insider trading data
+    - **Performance Monitoring**: Real-time performance metrics and monitoring
+    - **Subscription Management**: User subscription management for news topics
+    - **Content Classification**: Automatic tagging, ticker extraction, and sentiment analysis
+
+    ## Authentication
+    All endpoints (except GET /articles) require an API key passed in the `X-API-Key` header.
+
+    ## Performance Optimizations
+    The API includes advanced performance optimizations including:
+    - Intelligent caching for URL content
+    - Parallel processing for LLM operations
+    - Async web scraping with connection pooling
+    - Real-time performance monitoring
+
+  version: 1.0.0
+  contact:
+    name: Sectors Team
+    email: human@supertype.ai
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://sectors-news-endpoint.fly.dev
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: Articles
+    description: News article management and processing
+  - name: Filings
+    description: SEC filing and insider trading data management
+  - name: Subscriptions
+    description: User subscription management
+  - name: Performance
+    description: Performance monitoring and metrics
+  - name: Logs
+    description: System logs and monitoring
+
+paths:
+  # Articles Endpoints
+  /articles:
+    get:
+      tags: [Articles]
+      summary: Get news articles
+      description: Retrieve news articles with optional filtering by subsector or ID
+      security: []
+      parameters:
+        - name: subsector
+          in: query
+          description: Filter by subsector
+          schema:
+            type: string
+          example: "banking"
+        - name: sub_sector
+          in: query
+          description: Alternative parameter name for subsector
+          schema:
+            type: string
+        - name: id
+          in: query
+          description: Filter by specific article ID
+          schema:
+            type: integer
+          example: 123
+      responses:
+        "200":
+          description: Successfully retrieved articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NewsArticle"
+
+    post:
+      tags: [Articles]
+      summary: Insert news article
+      description: Insert a single news article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsArticleInput"
+      responses:
+        "200":
+          description: Article inserted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsertResponse"
+        "400":
+          description: Invalid input or duplicate source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags: [Articles]
+      summary: Update news article
+      description: Update an existing news article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/NewsArticleInput"
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: integer
+                      description: Article ID to update
+      responses:
+        "200":
+          description: Article updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateResponse"
+
+    delete:
+      tags: [Articles]
+      summary: Delete news articles
+      description: Delete multiple news articles by ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_list]
+              properties:
+                id_list:
+                  type: array
+                  items:
+                    type: integer
+                  description: List of article IDs to delete
+      responses:
+        "200":
+          description: Articles deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Deleted"
+
+  /articles/list:
+    post:
+      tags: [Articles]
+      summary: Insert multiple news articles
+      description: Insert multiple news articles in batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/NewsArticleInput"
+      responses:
+        "200":
+          description: Articles processed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InsertResponse"
+
+  /url-article:
+    post:
+      tags: [Articles]
+      summary: Generate article from URL (Optimized)
+      description: |
+        Extract and process a news article from a URL using advanced AI processing.
+
+        **Performance Features:**
+        - Intelligent caching for repeated URLs (~90% faster for cache hits)
+        - Parallel processing of classification and scoring (~40-60% faster)
+        - Optimized web scraping with connection pooling
+        - Real-time performance monitoring
+
+        **Processing Pipeline:**
+        1. Web scraping with fallback strategies
+        2. Content extraction and preprocessing  
+        3. LLM-based title and summary generation
+        4. Parallel classification (tags, tickers, sentiment, dimensions)
+        5. Article scoring based on Indonesian market relevance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source, timestamp]
+              properties:
+                source:
+                  type: string
+                  format: uri
+                  description: URL of the news article to process (required, must not be null or empty)
+                  example: "https://www.example.com/news/article"
+                  minLength: 1
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: Timestamp of the article (required, must not be null or empty)
+                  example: "2024-01-15 10:30:00"
+                  minLength: 1
+      responses:
+        "200":
+          description: Article processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsArticle"
+        "400":
+          description: Validation error - missing or invalid required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: "error"
+                message: "Source URL is required"
+        "500":
+          description: Processing failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /url-article/post:
+    post:
+      tags: [Articles]
+      summary: Post processed article
+      description: Insert a previously processed article without regeneration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsArticleInput"
+      responses:
+        "200":
+          description: Article posted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsertResponse"
+
+  /evaluate-article:
+    post:
+      tags: [Articles]
+      summary: Get article score
+      description: Evaluate and score a news article based on Indonesian market relevance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  description: Article content to score
+                title:
+                  type: string
+                  description: Article title
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                  description: Associated tickers
+      responses:
+        "200":
+          description: Article scored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  score:
+                    type: string
+                    description: Article score (0-100+)
+                    example: "75"
+
+  /stock-split:
+    post:
+      tags: [Articles]
+      summary: Insert stock split news
+      description: Generate and insert stock split announcement articles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required: [symbol, date, split_ratio, updated_on, applied_on]
+                properties:
+                  symbol:
+                    type: string
+                    description: Stock ticker symbol
+                    example: "BBCA"
+                  date:
+                    type: string
+                    format: date
+                    description: Effective date of split
+                    example: "2024-02-01"
+                  split_ratio:
+                    type: number
+                    description: Split ratio
+                    example: 2
+                  updated_on:
+                    type: string
+                    format: date
+                    description: Last update date
+                  applied_on:
+                    type: string
+                    format: date
+                    description: Application date
+      responses:
+        "200":
+          description: Stock split articles generated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InsertResponse"
+
+  /dividend:
+    post:
+      tags: [Articles]
+      summary: Insert dividend news
+      description: Generate and insert dividend announcement articles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  [symbol, dividend_amount, ex_date, updated_on, payment_date]
+                properties:
+                  symbol:
+                    type: string
+                    description: Stock ticker symbol
+                    example: "BBCA"
+                  dividend_amount:
+                    type: number
+                    description: Dividend amount in IDR
+                    example: 150
+                  ex_date:
+                    type: string
+                    format: date
+                    description: Ex-dividend date
+                    example: "2024-02-15"
+                  updated_on:
+                    type: string
+                    format: date
+                    description: Last update date
+                  payment_date:
+                    type: string
+                    format: date
+                    description: Payment date
+      responses:
+        "200":
+          description: Dividend articles generated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InsertResponse"
+
+  # Filings Endpoints
+  /pdf:
+    post:
+      tags: [Filings]
+      summary: Process PDF filing
+      description: Upload and process a PDF filing document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file to process
+                source:
+                  type: string
+                  description: Source URL of the filing
+                sub_sector:
+                  type: string
+                  description: Company subsector
+                  example: "banking"
+                subsector:
+                  type: string
+                  description: Alternative parameter for subsector
+                holder_type:
+                  type: string
+                  enum: [insider, institution]
+                  description: Type of holder
+                uid:
+                  type: string
+                  description: Unique identifier
+                UID:
+                  type: string
+                  description: Alternative parameter for uid
+      responses:
+        "200":
+          description: PDF processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Filing"
+        "400":
+          description: Invalid file or missing required fields
+
+  /pdf/post:
+    post:
+      tags: [Filings]
+      summary: Insert processed filing
+      description: Insert a previously processed filing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Filing"
+      responses:
+        "200":
+          description: Filing inserted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilingInsertResponse"
+
+  /insider-trading:
+    get:
+      tags: [Filings]
+      summary: Get insider trading data
+      description: Retrieve all insider trading filings
+      responses:
+        "200":
+          description: Successfully retrieved insider trading data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Filing"
+
+    post:
+      tags: [Filings]
+      summary: Add insider trading data
+      description: Add new insider trading data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsiderTradingInput"
+      responses:
+        "200":
+          description: Insider trading data added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilingInsertResponse"
+
+    patch:
+      tags: [Filings]
+      summary: Update insider trading data
+      description: Update existing insider trading data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/InsiderTradingInput"
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: integer
+                      description: Filing ID to update
+      responses:
+        "200":
+          description: Insider trading data updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateResponse"
+
+    delete:
+      tags: [Filings]
+      summary: Delete insider trading data
+      description: Delete multiple insider trading records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_list]
+              properties:
+                id_list:
+                  type: array
+                  items:
+                    type: integer
+                  description: List of filing IDs to delete
+      responses:
+        "200":
+          description: Records deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Deleted"
+
+  # Subscription Endpoints
+  /subscribe:
+    post:
+      tags: [Subscriptions]
+      summary: Subscribe to news topics
+      description: Register a user to subscribe to specific news topics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, topic]
+              properties:
+                user:
+                  type: string
+                  description: User identifier
+                  example: "john_doe"
+                topic:
+                  type: string
+                  description: Topic to subscribe to
+                  example: "BANKING"
+      responses:
+        "200":
+          description: Already subscribed to this topic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "201":
+          description: Subscribed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid input or subscription failed
+
+  /unsubscribe:
+    post:
+      tags: [Subscriptions]
+      summary: Unsubscribe from news topics
+      description: Unregister a user from specific news topics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, topic]
+              properties:
+                user:
+                  type: string
+                  description: User identifier
+                  example: "john_doe"
+                topic:
+                  type: string
+                  description: Topic to unsubscribe from
+                  example: "BANKING"
+      responses:
+        "200":
+          description: Unsubscribed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: User not found or not subscribed to topic
+
+  # Performance Monitoring Endpoints
+  /performance:
+    get:
+      tags: [Performance]
+      summary: Get performance metrics
+      description: |
+        Retrieve comprehensive performance metrics for API endpoints.
+
+        **Metrics Include:**
+        - Response times (avg, p50, p95, p99)
+        - Success/error rates
+        - Operation breakdowns
+        - Cache hit rates
+        - Detailed timing for sub-operations
+      parameters:
+        - name: operation
+          in: query
+          description: Specific operation to get metrics for
+          schema:
+            type: string
+            enum:
+              [
+                url_article_endpoint,
+                web_scraping,
+                classification_and_scoring,
+                generate_article_total,
+              ]
+          example: "url_article_endpoint"
+      responses:
+        "200":
+          description: Performance metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PerformanceReport"
+                  - $ref: "#/components/schemas/OperationMetrics"
+
+  /performance/reset:
+    post:
+      tags: [Performance]
+      summary: Reset performance metrics
+      description: Reset performance counters for all operations or a specific operation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operation:
+                  type: string
+                  description: Specific operation to reset (optional)
+                  example: "url_article_endpoint"
+      responses:
+        "200":
+          description: Metrics reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # Logs Endpoint
+  /logs:
+    get:
+      tags: [Logs]
+      summary: Get system logs
+      description: Retrieve system logs ordered by timestamp
+      responses:
+        "200":
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    timestamp:
+                      type: string
+                      format: date-time
+                    level:
+                      type: string
+                    message:
+                      type: string
+                    metadata:
+                      type: object
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    NewsArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique article ID
+        title:
+          type: string
+          description: Article title
+        body:
+          type: string
+          description: Article content
+        source:
+          type: string
+          format: uri
+          description: Source URL
+        timestamp:
+          type: string
+          format: date-time
+          description: Article timestamp
+        sector:
+          type: string
+          description: Industry sector
+          example: "Financial Services"
+        sub_sector:
+          type: array
+          items:
+            type: string
+          description: Industry subsectors
+          example: ["banking"]
+        tags:
+          type: array
+          items:
+            type: string
+          description: Content tags
+          example: ["earnings", "positive", "financial results"]
+        tickers:
+          type: array
+          items:
+            type: string
+          description: Associated stock tickers
+          example: ["BBCA.JK", "BMRI.JK"]
+        dimension:
+          type: object
+          description: Article dimensions analysis
+          properties:
+            valuation:
+              type: integer
+              nullable: true
+            future:
+              type: integer
+              nullable: true
+            technical:
+              type: integer
+              nullable: true
+            financials:
+              type: integer
+              nullable: true
+            dividend:
+              type: integer
+              nullable: true
+            management:
+              type: integer
+              nullable: true
+            ownership:
+              type: integer
+              nullable: true
+            sustainability:
+              type: integer
+              nullable: true
+        score:
+          type: integer
+          description: Article relevance score (0-150)
+          example: 85
+
+    NewsArticleInput:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Article title
+        body:
+          type: string
+          description: Article content
+        source:
+          type: string
+          format: uri
+          description: Source URL
+        timestamp:
+          type: string
+          format: date-time
+          description: Article timestamp
+        sector:
+          type: string
+          description: Industry sector
+        sub_sector:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          description: Industry subsector(s)
+        subsector:
+          type: string
+          description: Alternative parameter for sub_sector
+        tags:
+          type: array
+          items:
+            type: string
+          description: Content tags
+        tickers:
+          type: array
+          items:
+            type: string
+          description: Associated stock tickers
+        dimension:
+          type: object
+          description: Article dimensions
+        score:
+          type: integer
+          description: Article score
+
+    Filing:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique filing ID
+        title:
+          type: string
+          description: Filing title
+        body:
+          type: string
+          description: Filing content
+        source:
+          type: string
+          description: Filing source URL
+        timestamp:
+          type: string
+          format: date-time
+          description: Filing timestamp
+        sector:
+          type: string
+          description: Company sector
+        sub_sector:
+          type: string
+          description: Company subsector
+        tags:
+          type: array
+          items:
+            type: string
+          description: Filing tags
+        tickers:
+          type: array
+          items:
+            type: string
+          description: Associated tickers
+        transaction_type:
+          type: string
+          enum: [buy, sell]
+          description: Transaction type
+        holder_type:
+          type: string
+          enum: [insider, institution]
+          description: Holder type
+        holder_name:
+          type: string
+          description: Name of the holder
+        holding_before:
+          type: integer
+          description: Shares held before transaction
+        holding_after:
+          type: integer
+          description: Shares held after transaction
+        share_percentage_before:
+          type: number
+          format: float
+          description: Percentage ownership before
+        share_percentage_after:
+          type: number
+          format: float
+          description: Percentage ownership after
+        share_percentage_transaction:
+          type: number
+          format: float
+          description: Percentage of transaction
+        amount_transaction:
+          type: integer
+          description: Number of shares transacted
+        price:
+          type: number
+          format: float
+          description: Average transaction price
+        transaction_value:
+          type: number
+          format: float
+          description: Total transaction value
+        price_transaction:
+          type: object
+          description: Detailed price transaction data
+          properties:
+            prices:
+              type: array
+              items:
+                type: number
+            amount_transacted:
+              type: array
+              items:
+                type: number
+        UID:
+          type: string
+          description: Unique transaction identifier
+
+    InsiderTradingInput:
+      type: object
+      required:
+        [
+          company_name,
+          holder_name,
+          source,
+          ticker,
+          holding_before,
+          holding_after,
+          share_percentage_before,
+          share_percentage_after,
+          sub_sector,
+          date_time,
+          holder_type,
+          price_transaction,
+        ]
+      properties:
+        document_number:
+          type: string
+          description: Document number
+        company_name:
+          type: string
+          description: Company name
+        holder_name:
+          type: string
+          description: Holder name
+        shareholder_name:
+          type: string
+          description: Alternative field for holder name
+        source:
+          type: string
+          description: Source URL
+        ticker:
+          type: string
+          description: Stock ticker
+        control_status:
+          type: string
+          description: Control status
+        holding_before:
+          type: integer
+          description: Shares before transaction
+        holding_after:
+          type: integer
+          description: Shares after transaction
+        share_percentage_before:
+          type: number
+          description: Percentage before transaction
+        share_percentage_after:
+          type: number
+          description: Percentage after transaction
+        sub_sector:
+          type: string
+          description: Company subsector
+        subsector:
+          type: string
+          description: Alternative field for sub_sector
+        date_time:
+          type: string
+          format: date-time
+          description: Transaction date and time
+        holder_type:
+          type: string
+          enum: [insider, institution]
+          description: Type of holder
+        price_transaction:
+          type: object
+          required: [amount_transacted, prices]
+          properties:
+            amount_transacted:
+              type: array
+              items:
+                type: number
+              description: Amounts transacted
+            prices:
+              type: array
+              items:
+                type: number
+              description: Transaction prices
+        uid:
+          type: string
+          description: Unique identifier
+        UID:
+          type: string
+          description: Alternative field for uid
+
+    InsertResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, failed, restricted]
+          description: Operation status
+        id:
+          type: integer
+          description: Inserted record ID
+        status_code:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Status message
+        id_duplicate:
+          type: integer
+          description: ID of duplicate record (if restricted)
+        error:
+          type: string
+          description: Error message (if failed)
+
+    FilingInsertResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, failed]
+          description: Operation status
+        id_filings:
+          type: integer
+          description: Filing record ID
+        id_news:
+          type: integer
+          description: News record ID (if created)
+        status_code:
+          type: integer
+          description: HTTP status code
+
+    UpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Update message
+        data:
+          type: array
+          description: Updated record data
+        status_code:
+          type: integer
+          description: HTTP status code
+
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          description: Success message
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        message:
+          type: string
+          description: Error message
+
+    PerformanceReport:
+      type: object
+      properties:
+        summary:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/OperationStats"
+        timestamp:
+          type: number
+          format: timestamp
+          description: Report generation timestamp
+        total_operations:
+          type: integer
+          description: Total number of tracked operations
+
+    OperationMetrics:
+      type: object
+      properties:
+        stats:
+          $ref: "#/components/schemas/OperationStats"
+        recent_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: number
+                format: timestamp
+              error_message:
+                type: string
+              metadata:
+                type: object
+
+    OperationStats:
+      type: object
+      properties:
+        operation:
+          type: string
+          description: Operation name
+        total_calls:
+          type: integer
+          description: Total number of calls
+        success_count:
+          type: integer
+          description: Number of successful calls
+        error_count:
+          type: integer
+          description: Number of failed calls
+        success_rate:
+          type: number
+          format: float
+          description: Success rate (0.0 to 1.0)
+        avg_duration:
+          type: number
+          format: float
+          description: Average duration in seconds
+        min_duration:
+          type: number
+          format: float
+          description: Minimum duration in seconds
+        max_duration:
+          type: number
+          format: float
+          description: Maximum duration in seconds
+        p50_duration:
+          type: number
+          format: float
+          description: 50th percentile duration
+        p95_duration:
+          type: number
+          format: float
+          description: 95th percentile duration
+        p99_duration:
+          type: number
+          format: float
+          description: 99th percentile duration
