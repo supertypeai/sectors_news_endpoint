@@ -11,11 +11,15 @@ def delete_outdated_news():
 
     now = datetime.now()
 
-    if last_delete_news_run is not None and last_delete_news_run > now - timedelta(hours=6):
+    if last_delete_news_run is not None and last_delete_news_run > now - timedelta(
+        hours=6
+    ):
         return
 
     try:
-        supabase.table("idx_news").delete().lte("created_at", datetime.now(timezone.utc) - timedelta(days=120)).execute()
+        supabase.table("idx_news").delete().lte(
+            "created_at", datetime.now(timezone.utc) - timedelta(days=120)
+        ).execute()
         last_delete_news_run = now
     except Exception as e:
         print(f"Failed to delete logs: {e}")
@@ -26,11 +30,15 @@ def delete_outdated_logs():
 
     now = datetime.now()
 
-    if last_delete_logs_run is not None and last_delete_logs_run > now - timedelta(hours=6):
+    if last_delete_logs_run is not None and last_delete_logs_run > now - timedelta(
+        hours=6
+    ):
         return
 
     try:
-        supabase.table("idx_news_logs").delete().lte("timestamp", datetime.now(timezone.utc) - timedelta(days=7)).execute()
+        supabase.table("idx_news_logs").delete().lte(
+            "timestamp", datetime.now(timezone.utc) - timedelta(days=7)
+        ).execute()
         last_delete_logs_run = now
     except Exception as e:
         print(f"Failed to delete logs: {e}")
@@ -51,4 +59,4 @@ def log_request_info(level, message):
         print("Failed to insert log")
 
     delete_outdated_logs()
-    delete_outdated_news()
+    # delete_outdated_news()
