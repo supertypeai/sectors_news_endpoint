@@ -1,6 +1,9 @@
 beautifulsoup4==4.12.3
-Flask==3.0.3
-Flasgger==0.9.5 
+# Flask==3.0.3
+# Flasgger==0.9.5 
+Flask>=2.2,<3.0 
+Flasgger==0.9.5
+werkzeug>=2.2,<3.0
 goose3==3.1.19
 llama_index==0.11.2
 nltk==3.9.1
@@ -20,7 +23,6 @@ langchain-text-splitters==0.3.8
 langdetect==1.0.9
 langsmith==0.3.31
 gunicorn==23.0.0
-werkzeug~=3.0.3
 certifi==2024.7.4
 cffi==1.16.0
 charset-normalizer==3.3.2
