@@ -1,9 +1,7 @@
 beautifulsoup4==4.12.3
-# Flask==3.0.3
-# Flasgger==0.9.5 
-Flask>=2.2,<3.0 
+Flask==2.0.3
+werkzeug==2.0.3
 Flasgger==0.9.5
-werkzeug>=2.2,<3.0
 goose3==3.1.19
 llama_index==0.11.2
 nltk==3.9.1
