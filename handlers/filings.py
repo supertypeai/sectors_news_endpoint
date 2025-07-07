@@ -14,7 +14,7 @@ from scripts.classifier import (
 )
 import os
 
-filings_module = Blueprint('filings', __name__)
+filings_module = Blueprint("filings", __name__)
 
 
 @filings_module.route("/pdf", methods=["POST"])
@@ -43,8 +43,12 @@ def add_pdf_article():
     # Either Insider or Institution
     type = request.form["holder_type"] if "holder_type" in request.form else ""
     type = type if type.lower() == "insider" or type.lower() == "insitution" else ""
-    
-    uid = request.form["uid"] if "uid" in request.form else request.form["UID"] if "UID" in request.form else None
+
+    uid = (
+        request.form["uid"]
+        if "uid" in request.form
+        else request.form["UID"] if "UID" in request.form else None
+    )
 
     if file and file.filename.lower().endswith(".pdf"):
         file_path = save_file(file, current_app.config["UPLOAD_FOLDER"])
@@ -112,7 +116,13 @@ def delete_insider_trading():
     """
     input_data = request.get_json()
     id_list = input_data.get("id_list")
-    response = supabase.table("idx_filings").select("UID").in_("id", id_list).not_.is_("UID", None).execute()
+    response = (
+        supabase.table("idx_filings")
+        .select("UID")
+        .in_("id", id_list)
+        .not_.is_("UID", None)
+        .execute()
+    )
     if response.data:
         uids = [row["UID"] for row in response.data if row["UID"]]
         if uids:
@@ -148,11 +158,19 @@ def sanitize_filing(data):
         data.get("document_number").strip() if data.get("document_number") else ""
     )
     company_name = data.get("company_name").strip() if data.get("company_name") else ""
-    holder_name = data.get("holder_name").strip() if data.get("holder_name") else data.get("shareholder_name").strip() if data.get("shareholder_name") else ""
+    holder_name = (
+        data.get("holder_name").strip()
+        if data.get("holder_name")
+        else (
+            data.get("shareholder_name").strip() if data.get("shareholder_name") else ""
+        )
+    )
     source = data.get("source").strip()
-    ticker = data.get("ticker").strip() if data.get("ticker") else ''
+    ticker = data.get("ticker").strip() if data.get("ticker") else ""
     # category = data.get("category").strip()
-    control_status = data.get("control_status").strip() if data.get("control_status") else ""
+    control_status = (
+        data.get("control_status").strip() if data.get("control_status") else ""
+    )
     holding_before = data.get("holding_before")
     holding_after = data.get("holding_after")
     share_percentage_before = data.get("share_percentage_before")
@@ -169,8 +187,14 @@ def sanitize_filing(data):
     transaction_type = "buy" if holding_before < holding_after else "sell"
     amount_transaction = abs(holding_before - holding_after)
     price_transaction = data.get("price_transaction")
-    price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
-    uid = data.get("uid") if data.get("uid") else data.get("UID") if data.get("UID") else None
+    price, transaction_value = PriceTransaction(
+        price_transaction["amount_transacted"], price_transaction["prices"]
+    ).get_price_transaction_value()
+    uid = (
+        data.get("uid")
+        if data.get("uid")
+        else data.get("UID") if data.get("UID") else None
+    )
 
     ticker_list = ticker.split(".")
     if len(ticker_list) > 1:
@@ -203,8 +227,8 @@ def sanitize_filing(data):
         "holder_name": holder_name,
         "price_transaction": price_transaction,
         "price": price,
-        "transaction_value": transaction_value, 
-        "UID": uid
+        "transaction_value": transaction_value,
+        "UID": uid,
     }
     new_title, new_body = summarize_filing(new_article)
 
@@ -215,14 +239,20 @@ def sanitize_filing(data):
         # sentiment = get_sentiment_chat(new_body)
         # sub_sector = get_subsector_chat(new_body)
         # tags.append(sentiment[0])
-        tags = get_tags(new_article)
-        new_article["tags"].append(tags)
+
+        # tags = get_tags(new_article) # causing nested array problem, adding the whole list into the final list
+        # new_article["tags"].append(tags)
+        new_article["tags"] = get_tags(
+            new_article
+        )  # instead of append, it replace the whole tags column
         for ticker in tickers:
             if ticker not in new_article["tickers"]:
                 new_article["tickers"].append(ticker)
 
     if len(new_title) > 0:
         new_article["title"] = new_title
+
+    new_article["tags"] = list(set(new_article["tags"]))  # remove duplicates if any
 
     return new_article
 
@@ -261,9 +291,15 @@ def sanitize_filing_article(data, generate=True):
     amount_transaction = abs(holding_before - holding_after)
     holder_name = data.get("holder_name")
     price_transaction = data.get("price_transaction")
-    
-    price, transaction_value = PriceTransaction(price_transaction['amount_transacted'], price_transaction['prices']).get_price_transaction_value()
-    uid = data.get("uid") if data.get("uid") else data.get("UID") if data.get("UID") else None
+
+    price, transaction_value = PriceTransaction(
+        price_transaction["amount_transacted"], price_transaction["prices"]
+    ).get_price_transaction_value()
+    uid = (
+        data.get("uid")
+        if data.get("uid")
+        else data.get("UID") if data.get("UID") else None
+    )
 
     new_article = {
         "title": title,
@@ -286,7 +322,7 @@ def sanitize_filing_article(data, generate=True):
         "price": price,
         "transaction_value": transaction_value,
         "price_transaction": price_transaction,
-        "UID": uid
+        "UID": uid,
     }
 
     if generate:
@@ -319,24 +355,41 @@ def insert_insider_trading_supabase(data, format=True):
         new_article = sanitize_filing(data)
     else:
         new_article = sanitize_filing_article(data, generate=False)
-        
+
     news = True
-    
+
     # Check if UID already exists
-    if new_article.get('UID'):
-        existing = supabase.table("idx_filings").select("*").eq("UID", new_article['UID']).execute()
+    if new_article.get("UID"):
+        existing = (
+            supabase.table("idx_filings")
+            .select("*")
+            .eq("UID", new_article["UID"])
+            .execute()
+        )
         if existing.data:
             news = False
-    
-    if news:    
-        news_article = News.from_filing(Filing(**new_article))
-        response_news = supabase.table("idx_news").insert(news_article.__dict__).execute()
-    response = supabase.table("idx_filings").insert(new_article).execute()
-    
+
     if news:
-        return {"status": "success", "id_filings": response.data[0]["id"], "id_news": response_news.data[0]["id"], "status_code": 200}
+        news_article = News.from_filing(Filing(**new_article))
+        response_news = (
+            supabase.table("idx_news").insert(news_article.__dict__).execute()
+        )
+    response = supabase.table("idx_filings").insert(new_article).execute()
+
+    if news:
+        return {
+            "status": "success",
+            "id_filings": response.data[0]["id"],
+            "id_news": response_news.data[0]["id"],
+            "status_code": 200,
+        }
     else:
-        return {"status": "success", "id_filings": response.data[0]["id"], "status_code": 200}
+        return {
+            "status": "success",
+            "id_filings": response.data[0]["id"],
+            "status_code": 200,
+        }
+
 
 def update_insider_trading_supabase(data):
     """
@@ -347,61 +400,68 @@ def update_insider_trading_supabase(data):
 
     @return Dictionary containing the status and updated record data.
     """
-    old_article = supabase.table("idx_filings").select("*").eq("id", data.get("id")).execute()
+    old_article = (
+        supabase.table("idx_filings").select("*").eq("id", data.get("id")).execute()
+    )
     new_article = sanitize_filing_article(data, generate=False)
     record_id = data.get("id")
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
-    
+
     # Compare old and new article data
     if old_article.data:
         old_data = old_article.data[0]
         changes = {}
-        
-        for key in ['price_transaction']:
+
+        for key in ["price_transaction"]:
             if old_data.get(key) != new_article.get(key):
-                changes[key] = {
-                    'old': old_data.get(key),
-                    'new': new_article.get(key)
-                }
+                changes[key] = {"old": old_data.get(key), "new": new_article.get(key)}
         if changes:
             print(f"Data changes detected: {changes}")
-    
+
     # Check for UID and price_transaction changes
-    if new_article.get('UID') and 'price_transaction' in changes:
+    if new_article.get("UID") and "price_transaction" in changes:
         # Get paired data with same UID
-        paired_data = supabase.table("idx_filings").select("*").eq("UID", new_article['UID']).execute()
-        
+        paired_data = (
+            supabase.table("idx_filings")
+            .select("*")
+            .eq("UID", new_article["UID"])
+            .execute()
+        )
+
         if len(paired_data.data) == 2:  # Ensure exactly two records exist
             # Update price_transaction for both records
             for record in paired_data.data:
-                if record['id'] != record_id:  # Update the paired record
+                if record["id"] != record_id:  # Update the paired record
                     other_article = record.copy()
-                    other_article['price_transaction'] = new_article['price_transaction']
+                    other_article["price_transaction"] = new_article[
+                        "price_transaction"
+                    ]
                     price, transaction_value = PriceTransaction(
-                        other_article['price_transaction']['amount_transacted'],
-                        other_article['price_transaction']['prices']
+                        other_article["price_transaction"]["amount_transacted"],
+                        other_article["price_transaction"]["prices"],
                     ).get_price_transaction_value()
-                    other_article['price'] = price
-                    other_article['transaction_value'] = transaction_value
-                    
-                    other_article['amount_transaction'] = new_article['amount_transaction']
-                    
-                    supabase.table("idx_filings").update(other_article).eq("id", record['id']).execute()
-            
+                    other_article["price"] = price
+                    other_article["transaction_value"] = transaction_value
+
+                    other_article["amount_transaction"] = new_article[
+                        "amount_transaction"
+                    ]
+
+                    supabase.table("idx_filings").update(other_article).eq(
+                        "id", record["id"]
+                    ).execute()
+
             # Recalculate price and transaction_value for current record
             price, transaction_value = PriceTransaction(
-                new_article['price_transaction']['amount_transacted'],
-                new_article['price_transaction']['prices']
+                new_article["price_transaction"]["amount_transacted"],
+                new_article["price_transaction"]["prices"],
             ).get_price_transaction_value()
-            new_article['price'] = price
-            new_article['transaction_value'] = transaction_value
-    
+            new_article["price"] = price
+            new_article["transaction_value"] = transaction_value
+
     response = (
-        supabase.table("idx_filings")
-        .update(new_article)
-        .eq("id", record_id)
-        .execute()
+        supabase.table("idx_filings").update(new_article).eq("id", record_id).execute()
     )
 
     return {
@@ -409,6 +469,7 @@ def update_insider_trading_supabase(data):
         "data": response.data,
         "status_code": 200,
     }
+
 
 def get_tags(filing):
     """
@@ -424,9 +485,10 @@ def get_tags(filing):
     tags.append("IDX")
     tags.append("Ownership Changes")
     tags.append("Bullish" if filing["transaction_type"].upper() == "BUY" else "Bearish")
-    
+
     # Purpose is skipped
     return tags
+
 
 def save_file(file, upload_folder):
     """
