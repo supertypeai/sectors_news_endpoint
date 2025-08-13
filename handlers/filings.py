@@ -224,7 +224,7 @@ def sanitize_filing(data):
         "share_percentage_after": share_percentage_after,
         "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
-        "holder_name": holder_name,
+        "holder_name": holder_name.title(),
         "price_transaction": price_transaction,
         "price": price,
         "transaction_value": transaction_value,
@@ -234,7 +234,7 @@ def sanitize_filing(data):
 
     if len(new_body) > 0:
         new_article["body"] = new_body
-        tickers = get_tickers(new_body)
+        # tickers = get_tickers(new_body)
         # tags = get_tags_chat(new_body)
         # sentiment = get_sentiment_chat(new_body)
         # sub_sector = get_subsector_chat(new_body)
@@ -245,9 +245,9 @@ def sanitize_filing(data):
         new_article["tags"] = get_tags(
             new_article
         )  # instead of append, it replace the whole tags column
-        for ticker in tickers:
-            if ticker not in new_article["tickers"]:
-                new_article["tickers"].append(ticker)
+        # for ticker in tickers:
+        #     if ticker not in new_article["tickers"]:
+        #         new_article["tickers"].append(ticker)
 
     if len(new_title) > 0:
         new_article["title"] = new_title
@@ -318,7 +318,7 @@ def sanitize_filing_article(data, generate=True):
         "share_percentage_after": share_percentage_after,
         "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
-        "holder_name": holder_name,
+        "holder_name": holder_name.title(),
         "price": price,
         "transaction_value": transaction_value,
         "price_transaction": price_transaction,
@@ -374,6 +374,12 @@ def insert_insider_trading_supabase(data, format=True):
         response_news = (
             supabase.table("idx_news").insert(news_article.__dict__).execute()
         )
+    
+    inserted_filing = new_article.copy()
+    if inserted_filing["tickers"]:
+        inserted_filing["symbol"] = inserted_filing["tickers"][0]
+    else:
+        inserted_filing["symbol"] = None
     response = supabase.table("idx_filings").insert(new_article).execute()
 
     if news:
