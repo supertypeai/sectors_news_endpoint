@@ -380,7 +380,7 @@ def insert_insider_trading_supabase(data, format=True):
         inserted_filing["symbol"] = inserted_filing["tickers"][0]
     else:
         inserted_filing["symbol"] = None
-    response = supabase.table("idx_filings").insert(new_article).execute()
+    response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
     if news:
         return {
