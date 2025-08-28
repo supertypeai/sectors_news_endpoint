@@ -69,3 +69,12 @@ def safe_float(value):
         return float(value)
     except (ValueError, TypeError):
         return None
+    
+    
+def safe_int(value):
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None

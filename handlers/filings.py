@@ -12,7 +12,7 @@ from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
 )
-from handlers.support import safe_float
+from handlers.support import safe_float, safe_int
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -190,8 +190,8 @@ def sanitize_filing(data):
     date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
     holder_type = data.get("holder_type")
     
-    holding_before = safe_float(data.get("holding_before"))
-    holding_after = safe_float(data.get("holding_after"))
+    holding_before = safe_int(data.get("holding_before"))
+    holding_after = safe_int(data.get("holding_after"))
 
     if holding_before is not None and holding_after is not None:
         transaction_type = "buy" if holding_before < holding_after else "sell"
@@ -296,8 +296,8 @@ def sanitize_filing_article(data, generate=True):
     tags = data.get("tags", [])
     tickers = data.get("tickers", [])
 
-    holding_before = safe_float(data.get("holding_before"))
-    holding_after = safe_float(data.get("holding_after"))
+    holding_before = safe_int(data.get("holding_before"))
+    holding_after = safe_int(data.get("holding_after"))
     share_percentage_before = safe_float(data.get("share_percentage_before"))
     share_percentage_after = safe_float(data.get("share_percentage_after"))
 
