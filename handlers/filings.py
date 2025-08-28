@@ -295,14 +295,26 @@ def sanitize_filing_article(data, generate=True):
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
     tags = data.get("tags", [])
     tickers = data.get("tickers", [])
-    holding_before = data.get("holding_before")
-    holding_after = data.get("holding_after")
-    share_percentage_before = data.get("share_percentage_before")
-    share_percentage_after = data.get("share_percentage_after")
-    share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+
+    holding_before = safe_float(data.get("holding_before"))
+    holding_after = safe_float(data.get("holding_after"))
+    share_percentage_before = safe_float(data.get("share_percentage_before"))
+    share_percentage_after = safe_float(data.get("share_percentage_after"))
+
+    # Calculate values only if have valid data
+    if share_percentage_before is not None and share_percentage_after is not None:
+        share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+    else:
+        share_percentage_transaction = None
+    
+    if holding_before is not None and holding_after is not None:
+        transaction_type = "buy" if holding_before < holding_after else "sell"
+        amount_transaction = abs(holding_before - holding_after)
+    else: 
+        transaction_type = data.get("transaction_type").lower() if data.get("transaction_type") else None
+        amount_transaction = None
+    
     holder_type = data.get("holder_type")
-    transaction_type = "buy" if holding_before < holding_after else "sell"
-    amount_transaction = abs(holding_before - holding_after)
     holder_name = data.get("holder_name")
     price_transaction = data.get("price_transaction")
 
