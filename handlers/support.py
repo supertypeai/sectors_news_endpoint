@@ -60,3 +60,12 @@ def log_request_info(level, message):
 
     delete_outdated_logs()
     # delete_outdated_news()
+
+
+def safe_float(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None

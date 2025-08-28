@@ -12,6 +12,7 @@ from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
 )
+from handlers.support import safe_float
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -172,8 +173,8 @@ def sanitize_filing(data):
         data.get("control_status").strip() if data.get("control_status") else ""
     )
 
-    share_percentage_before = data.get("share_percentage_before")
-    share_percentage_after = data.get("share_percentage_after")
+    share_percentage_before = safe_float(data.get("share_percentage_before"))
+    share_percentage_after = safe_float(data.get("share_percentage_after"))
     
     if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
@@ -189,8 +190,8 @@ def sanitize_filing(data):
     date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
     holder_type = data.get("holder_type")
     
-    holding_before = data.get("holding_before")
-    holding_after = data.get("holding_after")
+    holding_before = safe_float(data.get("holding_before"))
+    holding_after = safe_float(data.get("holding_after"))
 
     if holding_before is not None and holding_after is not None:
         transaction_type = "buy" if holding_before < holding_after else "sell"
