@@ -171,11 +171,15 @@ def sanitize_filing(data):
     control_status = (
         data.get("control_status").strip() if data.get("control_status") else ""
     )
-    holding_before = data.get("holding_before")
-    holding_after = data.get("holding_after")
+
     share_percentage_before = data.get("share_percentage_before")
     share_percentage_after = data.get("share_percentage_after")
-    share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+    
+    if not share_percentage_before and not share_percentage_after:
+        share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+    else: 
+        share_percentage_transaction = None 
+
     sub_sector = (
         data.get("sub_sector").strip()
         if data.get("sub_sector")
@@ -184,8 +188,17 @@ def sanitize_filing(data):
     # purpose = data.get("purpose").strip()
     date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
     holder_type = data.get("holder_type")
-    transaction_type = "buy" if holding_before < holding_after else "sell"
-    amount_transaction = abs(holding_before - holding_after)
+    
+    holding_before = data.get("holding_before")
+    holding_after = data.get("holding_after")
+
+    if not holding_before and not holding_after:
+        transaction_type = "buy" if holding_before < holding_after else "sell"
+        amount_transaction = abs(holding_before - holding_after)
+    else:
+        transaction_type = data.get("transaction_type", None).lower()
+        amount_transaction = None
+
     price_transaction = data.get("price_transaction")
     price, transaction_value = PriceTransaction(
         price_transaction["amount_transacted"], price_transaction["prices"]
