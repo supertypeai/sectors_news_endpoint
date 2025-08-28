@@ -175,7 +175,7 @@ def sanitize_filing(data):
     share_percentage_before = data.get("share_percentage_before")
     share_percentage_after = data.get("share_percentage_after")
     
-    if not share_percentage_before and not share_percentage_after:
+    if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
     else: 
         share_percentage_transaction = None 
@@ -192,11 +192,11 @@ def sanitize_filing(data):
     holding_before = data.get("holding_before")
     holding_after = data.get("holding_after")
 
-    if not holding_before and not holding_after:
+    if holding_before is not None and holding_after is not None:
         transaction_type = "buy" if holding_before < holding_after else "sell"
         amount_transaction = abs(holding_before - holding_after)
     else:
-        transaction_type = data.get("transaction_type", None).lower()
+        transaction_type = data.get("transaction_type").lower()
         amount_transaction = None
 
     price_transaction = data.get("price_transaction")
