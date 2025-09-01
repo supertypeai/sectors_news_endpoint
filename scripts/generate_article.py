@@ -176,10 +176,6 @@ class FilingArticleGenerator:
                                 self.extract_number(price_line[1]) or 0
                             )
 
-                        # Extract all price transactions
-                        price_transactions = []
-                        amounts_transacted = []
-
                         for j in range(i + 2, len(lines)):
                             line_parts = lines[j].split(" ")
                             if len(line_parts) == 0:
