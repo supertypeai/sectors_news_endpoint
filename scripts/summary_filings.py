@@ -38,7 +38,7 @@ class FilingSummarizer:
     """Enhanced filing summarizer with robust error handling and optimization."""
 
     def __init__(
-        self, model_name: str = "llama3-70b-8192", model_provider: str = "groq"
+        self, model_name: str = "llama-3.3-70b-versatile", model_provider: str = "groq"
     ):
         """
         Initialize filing summarizer.
