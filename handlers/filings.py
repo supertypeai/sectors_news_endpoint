@@ -194,16 +194,19 @@ def sanitize_filing(data):
     holding_after = safe_int(data.get("holding_after"))
 
     if holding_before is not None and holding_after is not None:
-        transaction_type = "buy" if holding_before < holding_after else "sell"
+        # transaction_type = "buy" if holding_before < holding_after else "sell"
         amount_transaction = abs(holding_before - holding_after)
     else:
-        transaction_type = data.get("transaction_type").lower()
+        # transaction_type = data.get("transaction_type").lower()
         amount_transaction = None
 
     price_transaction = data.get("price_transaction")
-    price, transaction_value = PriceTransaction(
-        price_transaction["amount_transacted"], price_transaction["prices"]
+    price, transaction_value, transaction_type = PriceTransaction(
+        price_transaction.get("amount_transacted"), 
+        price_transaction.get("prices"), 
+        price_transaction.get("types")
     ).get_price_transaction_value()
+
     uid = (
         data.get("uid")
         if data.get("uid")
@@ -308,19 +311,22 @@ def sanitize_filing_article(data, generate=True):
         share_percentage_transaction = None
     
     if holding_before is not None and holding_after is not None:
-        transaction_type = "buy" if holding_before < holding_after else "sell"
+        # transaction_type = "buy" if holding_before < holding_after else "sell"
         amount_transaction = abs(holding_before - holding_after)
     else: 
-        transaction_type = data.get("transaction_type").lower() if data.get("transaction_type") else None
+        # transaction_type = data.get("transaction_type").lower() if data.get("transaction_type") else None
         amount_transaction = None
     
     holder_type = data.get("holder_type")
     holder_name = data.get("holder_name")
     price_transaction = data.get("price_transaction")
 
-    price, transaction_value = PriceTransaction(
-        price_transaction["amount_transacted"], price_transaction["prices"]
+    price, transaction_value, transaction_type = PriceTransaction(
+        price_transaction["amount_transacted"], 
+        price_transaction["prices"],
+        price_transaction["types"]
     ).get_price_transaction_value()
+
     uid = (
         data.get("uid")
         if data.get("uid")
@@ -406,6 +412,7 @@ def insert_insider_trading_supabase(data, format=True):
         inserted_filing["symbol"] = inserted_filing["tickers"][0]
     else:
         inserted_filing["symbol"] = None
+
     response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
     if news:
