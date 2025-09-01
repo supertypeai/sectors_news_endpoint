@@ -1,9 +1,11 @@
 import json
+import pandas as pd 
+
 
 class PriceTransaction:
   prices: list[float] = []
   amount_transacted: list[float] = []
-  def __init__(self, amount_transacted: list[float], prices: list[float]):
+  def __init__(self, amount_transacted: list[float], prices: list[float], transaction_type: list[str]):
     """
     Initializes the Transaction object.
 
@@ -12,7 +14,51 @@ class PriceTransaction:
     """
     self.amount_transacted = amount_transacted
     self.prices = prices
+    self.transaction_type = transaction_type
 
+  def calculate_two_transaction_type(self) -> dict:
+    """
+    Calculates the net transaction details from a dictionary of price transactions.
+
+    @return: Dictionary containing the weighted average price, total transaction value, and overall transaction type.
+    """
+    df = pd.DataFrame({
+        'amount_transacted': self.amount_transacted,
+        'prices': self.prices,
+        'type': self.transaction_type
+    }) 
+   
+    df['value'] = df['prices'] * df['amount_transacted']
+
+    # Calculate total shares and value for all 'buy' transactions
+    total_buy_shares = df[df['type'] == 'buy']['amount_transacted'].sum()
+    total_buy_value = df[df['type'] == 'buy']['value'].sum()
+
+    # Calculate total shares and value for all 'sell' transactions
+    total_sell_shares = df[df['type'] == 'sell']['amount_transacted'].sum()
+    total_sell_value = df[df['type'] == 'sell']['value'].sum()
+
+    # Calculate the net difference between buys and sells
+    net_value = total_buy_value - total_sell_value
+    net_shares = total_buy_shares - total_sell_shares
+
+    # Determine the overall transaction type
+    transaction_type = 'buy' if net_value >= 0 else 'sell'
+    
+    # Calculate the weighted average price
+    if net_shares != 0:
+        weighted_average_price = abs(net_value / net_shares)
+    else:
+        weighted_average_price = 0 
+
+    result = {
+        "price": round(float(weighted_average_price)),
+        "transaction_value": int(abs(net_value)),
+        "transaction_type": transaction_type
+    }
+
+    return result
+  
   def get_price_transaction_value(self):
     """
     Calculates the price and transaction value of the transaction.
@@ -21,14 +67,20 @@ class PriceTransaction:
     """
     sum_price_transaction = 0
     sum_transaction = 0
-    for i in range(len(self.prices)):
-      sum_price_transaction += self.prices[i] * self.amount_transacted[i]
-      sum_transaction += self.amount_transacted[i]
-    self.price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
-    self.transaction_value = sum_price_transaction
-    return self.price, self.transaction_value
+
+    check_len_type = len(set(self.transaction_type))
+    if check_len_type > 1:
+      result = self.calculate_two_transaction_type()
+      return result.get('price'), result.get('transaction_value'), result.get('transaction_type')  
+
+    else:
+      for index in range(len(self.prices)):
+        sum_price_transaction += self.prices[index] * self.amount_transacted[index]
+        sum_transaction += self.amount_transacted[index]
+      self.price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
+      self.transaction_value = sum_price_transaction
+      return self.price, self.transaction_value, self.transaction_type[0]
   
-    
   def to_json(self):
     """
     Converts the Transaction object to a JSON string.
