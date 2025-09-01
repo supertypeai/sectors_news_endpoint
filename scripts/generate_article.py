@@ -95,7 +95,7 @@ class FilingArticleGenerator:
             "purpose": "",
             "date_time": "",
             "price": 0,
-            "price_transaction": {"prices": [], "amount_transacted": []},
+            "price_transaction": {"prices": [], "amount_transacted": [], "types": []},
         }
 
         # Extraction patterns for different fields
@@ -105,6 +105,14 @@ class FilingArticleGenerator:
             "ticker": "Kode Emiten",
         }
 
+        price_transactions = []
+        amounts_transacted = []
+        transaction_types = []
+        transaction_type_map = {
+            "pembelian": "buy",
+            "penjualan": "sell"
+        }
+        
         try:
             for i, line in enumerate(lines):
                 # Extract basic information
@@ -175,11 +183,13 @@ class FilingArticleGenerator:
                         for j in range(i + 2, len(lines)):
                             line_parts = lines[j].split(" ")
                             if len(line_parts) == 0:
-                                break
+                                continue
 
                             transaction_type = line_parts[0]
                             if transaction_type not in ["Pembelian", "Penjualan"]:
-                                break
+                                continue
+                            
+                            transaction_types.append(transaction_type_map.get(transaction_type.lower(), ""))
 
                             if len(line_parts) > 1:
                                 price = self.extract_number(line_parts[1])
@@ -195,6 +205,7 @@ class FilingArticleGenerator:
                         article_info["price_transaction"]["amount_transacted"] = (
                             amounts_transacted
                         )
+                        article_info["price_transaction"]["types"] = transaction_types
 
                     except (IndexError, ValueError) as e:
                         logger.warning(f"Error extracting transaction prices: {e}")
