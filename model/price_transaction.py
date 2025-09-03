@@ -59,6 +59,10 @@ class PriceTransaction:
 
     return result
   
+  def get_price_transaction_value_two_values(self):
+    result = self.calculate_two_transaction_type()
+    return result.get('price'), result.get('transaction_value'), result.get('transaction_type')
+    
   def get_price_transaction_value(self):
     """
     Calculates the price and transaction value of the transaction.
@@ -66,20 +70,15 @@ class PriceTransaction:
     @return: Tuple containing the price and transaction value.
     """
     sum_price_transaction = 0
-    sum_transaction = 0
+    sum_transaction = 0  
 
-    check_len_type = len(set(self.transaction_type))
-    if check_len_type > 1:
-      result = self.calculate_two_transaction_type()
-      return result.get('price'), result.get('transaction_value'), result.get('transaction_type')  
+    for index in range(len(self.prices)):
+      sum_price_transaction += self.prices[index] * self.amount_transacted[index]
+      sum_transaction += self.amount_transacted[index]
 
-    else:
-      for index in range(len(self.prices)):
-        sum_price_transaction += self.prices[index] * self.amount_transacted[index]
-        sum_transaction += self.amount_transacted[index]
-      self.price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
-      self.transaction_value = sum_price_transaction
-      return self.price, self.transaction_value, self.transaction_type[0]
+    self.price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
+    self.transaction_value = sum_price_transaction
+    return self.price, self.transaction_value
   
   def to_json(self):
     """
