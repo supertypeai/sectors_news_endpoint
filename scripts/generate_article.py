@@ -12,6 +12,8 @@ import logging
 from model.price_transaction import PriceTransaction
 from scripts.classifier import get_sentiment_chat, get_tags_chat
 from scripts.summary_filings import summarize_filing
+from handlers.support import clean_company_name
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ class FilingArticleGenerator:
         except (ValueError, AttributeError):
             logger.warning(f"Could not extract number from: {input_string}")
             return None
-
+    
     def extract_info(self, text: str) -> Dict[str, Any]:
         """
         Extract filing information from PDF text.
@@ -122,7 +124,9 @@ class FilingArticleGenerator:
 
                 # Extract holder name (special case)
                 if "Nama Pemegang Saham" in line:
-                    article_info["holder_name"] = " ".join(line.split()[3:])
+                    holder_name = " ".join(line.split()[3:])
+                    holder_name_cleaned = clean_company_name(holder_name)
+                    article_info['holder_name'] = holder_name_cleaned
 
                 # Extract category
                 if "Kategori" in line:
@@ -182,20 +186,27 @@ class FilingArticleGenerator:
                                 continue
 
                             transaction_type = line_parts[0]
-                            if transaction_type not in ["Pembelian", "Penjualan"]:
-                                continue
-                            
-                            transaction_types.append(transaction_type_map.get(transaction_type.lower(), ""))
+                            valid_types = ["Pembelian", "Penjualan", "Pengalihan"]
 
-                            if len(line_parts) > 1:
-                                price = self.extract_number(line_parts[1])
-                                if price is not None:
-                                    price_transactions.append(price)
+                            if transaction_type in valid_types:
+                                if transaction_type in ["Pembelian", "Penjualan"]:
+                                    transaction_types.append(transaction_type_map.get(transaction_type.lower(), ""))
+                                    article_info["price_transaction"]["types"] = transaction_types
 
-                            if len(line_parts) > 5:
-                                amount = self.extract_number(line_parts[5])
-                                if amount is not None:
-                                    amounts_transacted.append(amount)
+                                if len(line_parts) > 1:
+                                    price = self.extract_number(line_parts[1])
+                                    if price is not None:
+                                        price_transactions.append(price)
+
+                                if len(line_parts) > 5:
+                                    amount = self.extract_number(line_parts[5])
+                                    if amount is not None:
+                                        amounts_transacted.append(amount)
+                            else:
+                                  if ("Tujuan" in line_parts[0] or 
+                                    "Jumlah" in line_parts[0] or 
+                                    "Status" in line_parts[0]):
+                                    break
 
                         article_info["price_transaction"]["prices"] = price_transactions
                         article_info["price_transaction"]["amount_transacted"] = (
@@ -340,15 +351,35 @@ class FilingArticleGenerator:
                 article_info["price_transaction"]["amount_transacted"]
                 and article_info["price_transaction"]["prices"]
             ):
-                price_transaction = PriceTransaction(
-                    amount_transacted=article_info["price_transaction"][
-                        "amount_transacted"
-                    ],
-                    prices=article_info["price_transaction"]["prices"],
-                )
-                article["price"], article["transaction_value"] = (
-                    price_transaction.get_price_transaction_value()
-                )
+                price_transaction_types = article_info['price_transaction'].get('types')
+                if price_transaction_types:
+                    price_transaction = PriceTransaction(
+                        amount_transacted=article_info["price_transaction"][
+                            "amount_transacted"
+                        ],
+                        prices=article_info["price_transaction"]["prices"],
+                        transaction_type=article_info['price_transaction']['types']
+                    )
+                    
+                    check_unique_type = len(set(article_info['price_transaction']['types']))
+                    if check_unique_type > 1: 
+                        article["price"], article["transaction_value"], article['transaction_type'] = (
+                            price_transaction.get_price_transaction_value_two_values()
+                        )
+                    else: 
+                        article["price"], article["transaction_value"] = (
+                        price_transaction.get_price_transaction_value()
+                    )
+                else:
+                    price_transaction = PriceTransaction(
+                        amount_transacted=article_info["price_transaction"]["amount_transacted"],
+                        prices=article_info["price_transaction"]["prices"],
+                        transaction_type=[]  
+                    )
+                
+                    article["price"], article["transaction_value"] = (
+                        price_transaction.get_price_transaction_value()
+                    )
 
         except Exception as e:
             logger.error(f"Error populating article data: {e}")
@@ -382,11 +413,20 @@ class FilingArticleGenerator:
                     article[field] = 0.0
 
             # Transaction details
-            article["transaction_type"] = (
-                "buy"
-                if article["holding_before"] < article["holding_after"]
-                else "sell"
-            )
+            price_transaction_types = article_info.get('price_transaction', {}).get('types')
+            if price_transaction_types and len(set(price_transaction_types)) == 1:
+                article["transaction_type"] = (
+                    "buy"
+                    if article["holding_before"] < article["holding_after"]
+                    else "sell"
+                )
+            else:
+                article["transaction_type"] = (
+                    "buy"
+                    if article["holding_before"] < article["holding_after"]
+                    else "sell"
+                )
+
             article["amount_transaction"] = abs(
                 article["holding_before"] - article["holding_after"]
             )
