@@ -12,7 +12,7 @@ from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
 )
-from handlers.support import safe_float, safe_int
+from handlers.support import safe_float, safe_int, clean_company_name
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -142,7 +142,7 @@ def update_insider_trading():
     @return JSON response indicating success or failure.
     """
     input_data = request.get_json()
-    result = update_insider_trading_supabase(input_data)
+    result = update_insider_trading_supabase(input_data, True)
     return jsonify(result), result.get("status_code")
 
 
@@ -166,6 +166,8 @@ def sanitize_filing(data):
             data.get("shareholder_name").strip() if data.get("shareholder_name") else ""
         )
     )
+    holder_name = clean_company_name(holder_name)
+
     source = data.get("source").strip()
     ticker = data.get("ticker").strip() if data.get("ticker") else ""
     # category = data.get("category").strip()
@@ -200,12 +202,21 @@ def sanitize_filing(data):
         # transaction_type = data.get("transaction_type").lower()
         amount_transaction = None
 
+    # calculate price and types
     price_transaction = data.get("price_transaction")
-    price, transaction_value, transaction_type = PriceTransaction(
+    price_calculation = PriceTransaction(
         price_transaction.get("amount_transacted"), 
         price_transaction.get("prices"), 
         price_transaction.get("types")
-    ).get_price_transaction_value()
+    )
+    unique_types = len(set(price_transaction.get("types")))
+    if unique_types > 1:
+        price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
+    else:
+        price, transaction_value = price_calculation.get_price_transaction_value()
+        transaction_type = (
+            "buy" if holding_before < holding_after else "sell"
+        )
 
     uid = (
         data.get("uid")
@@ -241,7 +252,7 @@ def sanitize_filing(data):
         "share_percentage_after": share_percentage_after,
         "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
-        "holder_name": holder_name.title(),
+        "holder_name": holder_name,
         "price_transaction": price_transaction,
         "price": price,
         "transaction_value": transaction_value,
@@ -319,13 +330,24 @@ def sanitize_filing_article(data, generate=True):
     
     holder_type = data.get("holder_type")
     holder_name = data.get("holder_name")
-    price_transaction = data.get("price_transaction")
+    holder_name = clean_company_name(holder_name)
 
-    price, transaction_value, transaction_type = PriceTransaction(
-        price_transaction["amount_transacted"], 
-        price_transaction["prices"],
-        price_transaction["types"]
-    ).get_price_transaction_value()
+    # calculate price and types
+    price_transaction = data.get("price_transaction")
+    
+    price_calculation = PriceTransaction(
+        price_transaction.get("amount_transacted"), 
+        price_transaction.get("prices"), 
+        price_transaction.get("types")
+    )
+    unique_types = len(set(price_transaction.get("types")))
+    if unique_types > 1:
+        price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
+    else:
+        price, transaction_value = price_calculation.get_price_transaction_value()
+        transaction_type = (
+            "buy" if holding_before < holding_after else "sell"
+        )
 
     uid = (
         data.get("uid")
@@ -350,7 +372,7 @@ def sanitize_filing_article(data, generate=True):
         "share_percentage_after": share_percentage_after,
         "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
-        "holder_name": holder_name.title(),
+        "holder_name": holder_name,
         "price": price,
         "transaction_value": transaction_value,
         "price_transaction": price_transaction,
@@ -430,7 +452,7 @@ def insert_insider_trading_supabase(data, format=True):
         }
 
 
-def update_insider_trading_supabase(data):
+def update_insider_trading_supabase(data, is_generate: bool = False):
     """
     @database-function
     @brief Updates insider trading data in the Supabase database.
@@ -442,7 +464,7 @@ def update_insider_trading_supabase(data):
     old_article = (
         supabase.table("idx_filings").select("*").eq("id", data.get("id")).execute()
     )
-    new_article = sanitize_filing_article(data, generate=False)
+    new_article = sanitize_filing_article(data, generate=is_generate)
     record_id = data.get("id")
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
@@ -473,16 +495,32 @@ def update_insider_trading_supabase(data):
             for record in paired_data.data:
                 if record["id"] != record_id:  # Update the paired record
                     other_article = record.copy()
+            
                     other_article["price_transaction"] = new_article[
                         "price_transaction"
                     ]
-                    price, transaction_value = PriceTransaction(
-                        other_article["price_transaction"]["amount_transacted"],
-                        other_article["price_transaction"]["prices"],
-                    ).get_price_transaction_value()
+                    other_holding_before = other_article['holding_before']
+                    other_holding_after = other_article['holding_after']
+
+                    other_price_transactions = other_article['price_transaction']
+                    price_calculation = PriceTransaction(
+                        other_price_transactions.get("amount_transacted"), 
+                        other_price_transactions.get("prices"), 
+                        other_price_transactions.get("types")
+                    )
+                    # Calculation price for the other data that have a matching uid
+                    unique_types = len(set(other_price_transactions.get("types")))
+                    if unique_types > 1:
+                        price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
+                    else:
+                        price, transaction_value = price_calculation.get_price_transaction_value()
+                        transaction_type = (
+                            "buy" if other_holding_before < other_holding_after else "sell"
+                        )
+
                     other_article["price"] = price
                     other_article["transaction_value"] = transaction_value
-
+                    other_article['transaction_type'] = transaction_type
                     other_article["amount_transaction"] = new_article[
                         "amount_transaction"
                     ]
@@ -492,12 +530,12 @@ def update_insider_trading_supabase(data):
                     ).execute()
 
             # Recalculate price and transaction_value for current record
-            price, transaction_value = PriceTransaction(
-                new_article["price_transaction"]["amount_transacted"],
-                new_article["price_transaction"]["prices"],
-            ).get_price_transaction_value()
-            new_article["price"] = price
-            new_article["transaction_value"] = transaction_value
+            # price, transaction_value = PriceTransaction(
+            #     new_article["price_transaction"]["amount_transacted"],
+            #     new_article["price_transaction"]["prices"],
+            # ).get_price_transaction_value()
+            # new_article["price"] = price
+            # new_article["transaction_value"] = transaction_value
 
     response = (
         supabase.table("idx_filings").update(new_article).eq("id", record_id).execute()

@@ -2,9 +2,10 @@ from flask import request
 from database import supabase
 from datetime import datetime, timedelta, timezone
 
+import re 
+
 last_delete_logs_run = None
 last_delete_news_run = None
-
 
 def delete_outdated_news():
     global last_delete_news_run
@@ -78,3 +79,32 @@ def safe_int(value):
         return int(float(value))
     except (ValueError, TypeError):
         return None
+    
+
+def clean_company_name(company_name: str) -> str:
+        needs_cleaning = False
+
+        upper_count = sum(1 for char in company_name if char.isupper())
+        lower_count = sum(1 for char in company_name if char.islower())
+
+        # Check if the string is mostly uppercase
+        if upper_count > lower_count:
+            needs_cleaning = True
+        
+        # Check if all words are capitalized
+        words = company_name.split()
+        if not needs_cleaning and not all(word[0].isupper() for word in words if word):
+            needs_cleaning = True
+        
+        # Check if last letter of the last word capitalized
+        if not needs_cleaning and words:
+            last_word = words[-1]
+            if last_word and last_word[-1].isalpha() and last_word[-1].isupper():
+                needs_cleaning = True
+
+        if needs_cleaning:
+            cleaned_name = company_name.title()
+            cleaned_name = re.sub(r'\bPt\.?\b', 'PT', cleaned_name)
+            return cleaned_name.strip()
+        else:
+            return company_name
