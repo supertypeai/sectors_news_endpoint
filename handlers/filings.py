@@ -12,7 +12,9 @@ from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
 )
-from handlers.support import safe_float, safe_int, clean_company_name
+from handlers.support import (safe_float, safe_int, clean_company_name, 
+                              get_subsector_by_ticker, tags_insider_trading_buy, 
+                              tags_insider_trading_sell, tags_insider_trading_share)
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -183,11 +185,15 @@ def sanitize_filing(data):
     else: 
         share_percentage_transaction = None 
 
-    sub_sector = (
-        data.get("sub_sector").strip()
-        if data.get("sub_sector")
-        else data.get("subsector").strip()
-    )
+    if data.get('sub_sector') is None:
+        sub_sector = get_subsector_by_ticker(ticker)
+    else: 
+        sub_sector = (
+            data.get("sub_sector").strip()
+            if data.get("sub_sector")
+            else data.get("subsector").strip()
+        )
+         
     # purpose = data.get("purpose").strip()
     date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
     holder_type = data.get("holder_type")
@@ -258,6 +264,19 @@ def sanitize_filing(data):
         "transaction_value": transaction_value,
         "UID": uid,
     }
+
+    # Prepare static tags  
+    if transaction_type == "buy":
+        new_article["tags"] = tags_insider_trading_buy
+    else:
+        new_article["tags"] = tags_insider_trading_sell
+
+    # Prepare take over tag rule 
+    if share_percentage_before < 50 and share_percentage_after >= 50:
+        new_article['tags'].append('takeover')
+    elif share_percentage_before >= 50 and share_percentage_after < 50:
+        new_article['tags'].append('takeover')
+
     new_title, new_body = summarize_filing(new_article)
 
     if len(new_body) > 0:
@@ -270,9 +289,10 @@ def sanitize_filing(data):
 
         # tags = get_tags(new_article) # causing nested array problem, adding the whole list into the final list
         # new_article["tags"].append(tags)
-        new_article["tags"] = get_tags(
-            new_article
-        )  # instead of append, it replace the whole tags column
+
+        # new_article["tags"] = get_tags(
+        #     new_article
+        # )  # instead of append, it replace the whole tags column
         # for ticker in tickers:
         #     if ticker not in new_article["tickers"]:
         #         new_article["tickers"].append(ticker)
@@ -307,7 +327,7 @@ def sanitize_filing_article(data, generate=True):
         else data.get("subsector").strip()
     )
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
-    tags = data.get("tags", [])
+
     tickers = data.get("tickers", [])
 
     holding_before = safe_int(data.get("holding_before"))
@@ -354,6 +374,22 @@ def sanitize_filing_article(data, generate=True):
         if data.get("uid")
         else data.get("UID") if data.get("UID") else None
     )
+
+    if data.get("share_transfer"):
+        tags = tags_insider_trading_share
+    else:
+        if price_transaction == 'buy':
+            tags = tags_insider_trading_buy
+        elif price_transaction == 'sell':
+            tags = tags_insider_trading_sell
+        else:
+            tags = data.get("tags", [])
+
+    # Prepare take over tag rule 
+    if share_percentage_before < 50 and share_percentage_after >= 50:
+        new_article['tags'].append('takeover')
+    elif share_percentage_before >= 50 and share_percentage_after < 50:
+        new_article['tags'].append('takeover')
 
     new_article = {
         "title": title,
@@ -406,9 +442,9 @@ def insert_insider_trading_supabase(data, format=True):
     """
     # format : needs formatting
     if format:
-        new_article = sanitize_filing(data)
+        new_article = sanitize_filing(data=data)
     else:
-        new_article = sanitize_filing_article(data, generate=False)
+        new_article = sanitize_filing_article(data=data, generate=False)
 
     news = True
 
@@ -468,7 +504,7 @@ def update_insider_trading_supabase(data, is_generate: bool = False):
     record_id = data.get("id")
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
-
+    
     # Compare old and new article data
     if old_article.data:
         old_data = old_article.data[0]
