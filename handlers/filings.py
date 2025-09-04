@@ -170,7 +170,7 @@ def sanitize_filing(data):
     )
     holder_name = clean_company_name(holder_name)
 
-    source = data.get("source").strip()
+    source = data.get("source").strip() if data.get("source") else ""
     ticker = data.get("ticker").strip() if data.get("ticker") else ""
     # category = data.get("category").strip()
     control_status = (
@@ -185,7 +185,7 @@ def sanitize_filing(data):
     else: 
         share_percentage_transaction = None 
 
-    if data.get('sub_sector') is None:
+    if not data.get('sub_sector'):
         sub_sector = get_subsector_by_ticker(ticker)
     else: 
         sub_sector = (
@@ -504,7 +504,7 @@ def update_insider_trading_supabase(data, is_generate: bool = False):
     record_id = data.get("id")
     if not record_id:
         return jsonify({"error": "Record ID is required", "status_code": 400})
-    
+
     # Compare old and new article data
     if old_article.data:
         old_data = old_article.data[0]
