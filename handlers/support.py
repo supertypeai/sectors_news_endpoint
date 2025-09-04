@@ -3,9 +3,14 @@ from database import supabase
 from datetime import datetime, timedelta, timezone
 
 import re 
+import json 
 
 last_delete_logs_run = None
 last_delete_news_run = None
+
+tags_insider_trading_sell = ["bearish", "divestment", "ownership change", "insider trading"]
+tags_insider_trading_buy = ["bullish", "investment", "ownership change", "insider trading"]
+tags_insider_trading_share = ["neutral", "ownership change", "insider trading"]
 
 def delete_outdated_news():
     global last_delete_news_run
@@ -108,3 +113,21 @@ def clean_company_name(company_name: str) -> str:
             return cleaned_name.strip()
         else:
             return company_name
+
+
+def get_subsector_by_ticker(ticker: str) -> str:
+    try:
+        with open("./data/companies.json", "r") as f:
+            companies = json.load(f)
+
+        if ticker:
+            ticker = ticker.strip()
+            if ticker in companies:
+                sub_sector = companies[ticker]["sub_sector"]
+                return sub_sector
+            else:
+                return None 
+    except (FileNotFoundError, KeyError, IndexError) as e:
+        print(
+            f"Could not update sub_sector from companies data: {e}"
+        )
