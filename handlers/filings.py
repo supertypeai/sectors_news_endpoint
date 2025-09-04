@@ -386,13 +386,6 @@ def sanitize_filing_article(data, generate=True):
         else:
             tags = data.get("tags", [])
 
-    # Prepare take over tag rule 
-    if share_percentage_before is not None and share_percentage_after is not None:
-        if share_percentage_before < 50 and share_percentage_after >= 50:
-            new_article['tags'].append('takeover')
-        elif share_percentage_before >= 50 and share_percentage_after < 50:
-            new_article['tags'].append('takeover')
-
     new_article = {
         "title": title,
         "body": body,
@@ -417,6 +410,13 @@ def sanitize_filing_article(data, generate=True):
         "UID": uid,
     }
 
+    # Prepare take over tag rule 
+    if share_percentage_before is not None and share_percentage_after is not None:
+        if share_percentage_before < 50 and share_percentage_after >= 50:
+            new_article['tags'].append('takeover')
+        elif share_percentage_before >= 50 and share_percentage_after < 50:
+            new_article['tags'].append('takeover')
+            
     if generate:
         new_title, new_body = summarize_filing(new_article)
 
