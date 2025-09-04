@@ -272,10 +272,11 @@ def sanitize_filing(data):
         new_article["tags"] = tags_insider_trading_sell
 
     # Prepare take over tag rule 
-    if share_percentage_before < 50 and share_percentage_after >= 50:
-        new_article['tags'].append('takeover')
-    elif share_percentage_before >= 50 and share_percentage_after < 50:
-        new_article['tags'].append('takeover')
+    if share_percentage_before is not None and share_percentage_after is not None:
+        if share_percentage_before < 50 and share_percentage_after >= 50:
+            new_article['tags'].append('takeover')
+        elif share_percentage_before >= 50 and share_percentage_after < 50:
+            new_article['tags'].append('takeover')
 
     new_title, new_body = summarize_filing(new_article)
 
@@ -375,21 +376,22 @@ def sanitize_filing_article(data, generate=True):
         else data.get("UID") if data.get("UID") else None
     )
 
-    if data.get("share_transfer"):
+    if data.get("share_transfer_recipient") or data.get("share_transfer"):
         tags = tags_insider_trading_share
     else:
-        if price_transaction == 'buy':
+        if transaction_type == 'buy':
             tags = tags_insider_trading_buy
-        elif price_transaction == 'sell':
+        elif transaction_type == 'sell':
             tags = tags_insider_trading_sell
         else:
             tags = data.get("tags", [])
 
     # Prepare take over tag rule 
-    if share_percentage_before < 50 and share_percentage_after >= 50:
-        new_article['tags'].append('takeover')
-    elif share_percentage_before >= 50 and share_percentage_after < 50:
-        new_article['tags'].append('takeover')
+    if share_percentage_before is not None and share_percentage_after is not None:
+        if share_percentage_before < 50 and share_percentage_after >= 50:
+            new_article['tags'].append('takeover')
+        elif share_percentage_before >= 50 and share_percentage_after < 50:
+            new_article['tags'].append('takeover')
 
     new_article = {
         "title": title,
