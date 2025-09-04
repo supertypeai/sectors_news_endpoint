@@ -466,16 +466,15 @@ class FilingArticleGenerator:
     def _update_sector_information(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """Update sector information if missing."""
         try:
-            if not article.get("sub_sector"):
+            if article.get("tickers"):
                 # Try to get sub_sector from companies data
                 try:
                     with open("./data/companies.json", "r") as f:
                         companies = json.load(f)
-
-                    if article["tickers"]:
-                        ticker = article["tickers"][0].replace(".JK", "")
-                        if ticker in companies:
-                            article["sub_sector"] = companies[ticker]["sub_sector"]
+                   
+                    ticker = article.get('tickers')[0]
+                    if ticker in companies:
+                        article["sub_sector"] = companies[ticker]["sub_sector"]
 
                 except (FileNotFoundError, KeyError, IndexError) as e:
                     logger.warning(
