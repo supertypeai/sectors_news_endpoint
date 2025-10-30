@@ -43,7 +43,12 @@ class PriceTransaction:
     net_shares = total_buy_shares - total_sell_shares
 
     # Determine the overall transaction type
-    transaction_type = 'buy' if net_value >= 0 else 'sell'
+    if net_value > 0:
+      transaction_type = 'buy'
+    elif net_value < 0:
+      transaction_type = 'sell'
+    else: 
+      transaction_type = 'other'
     
     # Calculate the weighted average price
     if net_shares != 0:
@@ -52,7 +57,7 @@ class PriceTransaction:
         weighted_average_price = 0 
 
     result = {
-        "price": round(float(weighted_average_price)),
+        "price": float(f'{weighted_average_price:.4f}'),
         "transaction_value": int(abs(net_value)),
         "transaction_type": transaction_type
     }
@@ -76,8 +81,9 @@ class PriceTransaction:
       sum_price_transaction += self.prices[index] * self.amount_transacted[index]
       sum_transaction += self.amount_transacted[index]
 
-    self.price = round(sum_price_transaction / sum_transaction if sum_transaction != 0 else 0, 3)
+    self.price = sum_price_transaction / sum_transaction if sum_transaction != 0 else 0
     self.transaction_value = sum_price_transaction
+    self.price = float(f'{self.price:.4f}')
     return self.price, self.transaction_value
   
   def to_json(self):

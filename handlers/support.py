@@ -8,9 +8,14 @@ import json
 last_delete_logs_run = None
 last_delete_news_run = None
 
-tags_insider_trading_sell = ["bearish", "divestment", "ownership change", "insider trading"]
-tags_insider_trading_buy = ["bullish", "investment", "ownership change", "insider trading"]
-tags_insider_trading_share = ["neutral", "ownership change", "insider trading"]
+INHERIT = ["waris", "inheritance", "hibah", "grant", "bequest"]
+MESOP = ["mesop", "msop", "esop", "program opsi saham", "employee stock option"]
+FREEFLOAT = ["free float", "free-float", "freefloat", "pemenuhan porsi publik"]
+TRANSFER = [
+    "transfer", "pemindahan", "konversi", "conversion",
+    "neutral", "tanpa perubahan", "alih", "pengalihan"
+]
+
 
 def delete_outdated_news():
     global last_delete_news_run
@@ -131,3 +136,30 @@ def get_subsector_by_ticker(ticker: str) -> str:
         print(
             f"Could not update sub_sector from companies data: {e}"
         )
+
+
+def convert_price_transaction(price_transaction: dict) -> list[dict[str, any]]:
+    list_of_dict = []
+
+    for index in range(len(price_transaction.get('prices'))):
+        transactions = {
+            "price": price_transaction.get('prices')[index],
+            "amount_transacted": price_transaction.get('amount_transacted')[index],
+            "type": price_transaction.get('types')[index],
+            "date": price_transaction.get('dates')[index],
+        }
+        list_of_dict.append(transactions)
+
+    return list_of_dict
+
+
+def add_sentiment_tag(share_percentage_before: float, share_percentage_after: float) -> str:
+    if share_percentage_before is None or share_percentage_after is None:
+        return None 
+    
+    if share_percentage_after > share_percentage_before:
+        return "bullish"
+    elif share_percentage_after < share_percentage_before:
+        return "bearish"
+    
+    return None 

@@ -12,9 +12,11 @@ from scripts.summary_filings import summarize_filing
 from scripts.classifier import (
     get_tickers,
 )
-from handlers.support import (safe_float, safe_int, clean_company_name, 
-                              get_subsector_by_ticker, tags_insider_trading_buy, 
-                              tags_insider_trading_sell, tags_insider_trading_share)
+from handlers.support import (
+    safe_float, safe_int, clean_company_name, add_sentiment_tag,
+    convert_price_transaction, get_subsector_by_ticker,
+    INHERIT, MESOP, FREEFLOAT, TRANSFER
+)
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -53,10 +55,12 @@ def add_pdf_article():
         else request.form["UID"] if "UID" in request.form else None
     )
 
+    purpose = request.form["purpose"] if "source" in request.form else ""
+
     if file and file.filename.lower().endswith(".pdf"):
         file_path = save_file(file, current_app.config["UPLOAD_FOLDER"])
         text = extract_from_pdf(file_path)
-        text = generate_article_filings(source, sub_sector, type, text, uid)
+        text = generate_article_filings(source, purpose, sub_sector, type, text, uid)
         os.remove(file_path)
 
         try:
@@ -182,6 +186,7 @@ def sanitize_filing(data):
     
     if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+        share_percentage_transaction = float(f"{share_percentage_transaction:.4f}")
     else: 
         share_percentage_transaction = None 
 
@@ -209,13 +214,27 @@ def sanitize_filing(data):
         amount_transaction = None
 
     # calculate price and types
-    price_transaction = data.get("price_transaction")
+    price_transactions = data.get("price_transaction")
+
+    for key, value in price_transactions.items():
+        if key == 'dates':
+            formatted_dates = []
+            for date in value:
+                try:
+                    parsed_date = date 
+                    if not isinstance(date, str):
+                        parsed_date = datetime.strftime(date, "%Y-%m-%d")
+                    formatted_dates.append(parsed_date)
+                except ValueError:
+                    formatted_dates.append(None)
+            price_transactions[key] = formatted_dates
+
     price_calculation = PriceTransaction(
-        price_transaction.get("amount_transacted"), 
-        price_transaction.get("prices"), 
-        price_transaction.get("types")
+        price_transactions.get("amount_transacted"), 
+        price_transactions.get("prices"), 
+        price_transactions.get("types")
     )
-    unique_types = len(set(price_transaction.get("types")))
+    unique_types = len(set(price_transactions.get("types")))
     if unique_types > 1:
         price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
     else:
@@ -241,14 +260,21 @@ def sanitize_filing(data):
         ticker += ".JK"
     ticker = ticker.upper()
 
+    # Get purpose
+    purpose = data.get('purpose', None)
+
+    # Convert to list of dict
+    price_transactions = convert_price_transaction(price_transactions)
+
     new_article = {
         "title": f"Informasi insider trading {holder_name} dalam {company_name}",
         "body": f"{document_number} - {date_time} - {holder_name} dengan status kontrol {control_status} dalam saham {company_name} berubah dari {holding_before} menjadi {holding_after}",
         "source": source,
+        "purpose": purpose,
         "timestamp": str(date_time),
         "sector": sectors_data[sub_sector] if sub_sector in sectors_data.keys() else "",
         "sub_sector": sub_sector,
-        "tags": ["insider-trading", "IDX", "Ownership Changes"],
+        "tags": [],
         "tickers": [ticker],
         "transaction_type": transaction_type,
         "holder_type": holder_type,
@@ -259,29 +285,56 @@ def sanitize_filing(data):
         "share_percentage_transaction": share_percentage_transaction,
         "amount_transaction": amount_transaction,
         "holder_name": holder_name,
-        "price_transaction": price_transaction,
+        "price_transaction": price_transactions,
         "price": price,
         "transaction_value": transaction_value,
         "UID": uid,
     }
 
-    # Prepare static tags  
-    if transaction_type == "buy":
-        new_article["tags"] = tags_insider_trading_buy
-    else:
-        new_article["tags"] = tags_insider_trading_sell
+    # Prepare tags
+    tags_from_input = data.get('tags')
+    tag_list = [tags.strip() for tags in tags_from_input.split(',') if tags.strip()]
+    sorted_tags = sorted(tag_list)
+    new_article['tags'] = sorted_tags
+    
+    if not data.get('tags') or data.get('tags') == "":
+        # Sentiment tag
+        # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
 
-    # Prepare take over tag rule 
-    if share_percentage_before is not None and share_percentage_after is not None:
-        if share_percentage_before < 50 and share_percentage_after >= 50:
-            new_article['tags'].append('takeover')
-        elif share_percentage_before >= 50 and share_percentage_after < 50:
-            new_article['tags'].append('takeover')
+        # Buy Sell tag
+        # if transaction_type == "buy":
+        #     new_article["tags"].extend(['investment', sentiment_tag])
+        # elif transaction_type == 'sell':
+        #     new_article["tags"].extend(['divestment', sentiment_tag])
+
+        # Prepare take over tag rule 
+        if share_percentage_before is not None and share_percentage_after is not None:
+            if (share_percentage_before < 50 <= share_percentage_after) or (share_percentage_before >= 50 > share_percentage_after):
+                new_article["tags"].append("takeover")
+        
+        # Others tag 
+        flag_checks = {
+            "inheritance": INHERIT,
+            "MESOP": MESOP,
+            "free_float_requirement": FREEFLOAT,
+            "share-transfer": TRANSFER
+        }
+        flag_tag = next(
+            (flag for flag, values in flag_checks.items() if any(purpose.lower() in value for value in values)),
+            None
+        )
+
+        if flag_tag:
+            new_article["tags"].append(flag_tag)
+
+        tags_sorted = sorted([tag for tag in new_article['tags'] if tag])
+        new_article["tags"] = tags_sorted
 
     new_title, new_body = summarize_filing(new_article)
 
     if len(new_body) > 0:
         new_article["body"] = new_body
+
         # tickers = get_tickers(new_body)
         # tags = get_tags_chat(new_body)
         # sentiment = get_sentiment_chat(new_body)
@@ -339,6 +392,7 @@ def sanitize_filing_article(data, generate=True):
     # Calculate values only if have valid data
     if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
+        share_percentage_transaction = float(f"{share_percentage_transaction:.4f}")
     else:
         share_percentage_transaction = None
     
@@ -354,14 +408,24 @@ def sanitize_filing_article(data, generate=True):
     holder_name = clean_company_name(holder_name)
 
     # calculate price and types
-    price_transaction = data.get("price_transaction")
-    
+    price_transactions = data.get("price_transaction")
+    for key, value in price_transactions.items():
+        if key == 'dates':
+            formatted_dates = []
+            for date in value:
+                try:
+                    parsed_date = datetime.strftime(date, "%Y-%m-%d")
+                    formatted_dates.append(parsed_date)
+                except ValueError:
+                    formatted_dates.append(None)
+            price_transactions[key] = formatted_dates
+            
     price_calculation = PriceTransaction(
-        price_transaction.get("amount_transacted"), 
-        price_transaction.get("prices"), 
-        price_transaction.get("types")
+        price_transactions.get("amount_transacted"), 
+        price_transactions.get("prices"), 
+        price_transactions.get("types")
     )
-    unique_types = len(set(price_transaction.get("types")))
+    unique_types = len(set(price_transactions.get("types")))
     if unique_types > 1:
         price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
     else:
@@ -376,16 +440,31 @@ def sanitize_filing_article(data, generate=True):
         else data.get("UID") if data.get("UID") else None
     )
 
-    if data.get("share_transfer_recipient") or data.get("share_transfer"):
-        tags = tags_insider_trading_share
-    else:
-        if transaction_type == 'buy':
-            tags = tags_insider_trading_buy
-        elif transaction_type == 'sell':
-            tags = tags_insider_trading_sell
-        else:
-            tags = data.get("tags", [])
+    # Build tags list 
+    tags = []
 
+    # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
+    # if sentiment_tag:
+    #     tags.append(sentiment_tag)
+
+    flag_tag = data.get('flag_tags')
+    if flag_tag:
+        tags.append(flag_tag)
+
+    # if transaction_type == 'buy':
+    #     tags.append('investment')
+    # elif transaction_type == 'sell':
+    #     tags.append('divestment')
+
+    # Prepare take over tag rule 
+    if share_percentage_before is not None and share_percentage_after is not None:
+        if (share_percentage_before < 50 <= share_percentage_after) or (share_percentage_before >= 50 > share_percentage_after):
+            tags.append('takeover')
+
+    tags = sorted(set(tags))
+
+    price_transactions = convert_price_transaction(price_transactions)
+    
     new_article = {
         "title": title,
         "body": body,
@@ -406,17 +485,10 @@ def sanitize_filing_article(data, generate=True):
         "holder_name": holder_name,
         "price": price,
         "transaction_value": transaction_value,
-        "price_transaction": price_transaction,
+        "price_transaction": price_transactions,
         "UID": uid,
     }
 
-    # Prepare take over tag rule 
-    if share_percentage_before is not None and share_percentage_after is not None:
-        if share_percentage_before < 50 and share_percentage_after >= 50:
-            new_article['tags'].append('takeover')
-        elif share_percentage_before >= 50 and share_percentage_after < 50:
-            new_article['tags'].append('takeover')
-            
     if generate:
         new_title, new_body = summarize_filing(new_article)
 
@@ -462,7 +534,20 @@ def insert_insider_trading_supabase(data, format=True):
             news = False
 
     if news:
-        news_article = News.from_filing(Filing(**new_article))
+        new_article_for_news = new_article.copy()
+
+        new_tags = []
+        old_tags = new_article_for_news.get('tags', [])
+
+        # if 'investment' in old_tags: 
+        #     new_tags.append('buy')
+        # elif 'divestment' in old_tags:
+        #     new_tags.append('sell') 
+        
+        new_tags.append('insider-trading')
+        new_article_for_news['tags'] = sorted(set(new_tags))
+
+        news_article = News.from_filing(Filing(**new_article_for_news))
         response_news = (
             supabase.table("idx_news").insert(news_article.__dict__).execute()
         )
@@ -472,6 +557,8 @@ def insert_insider_trading_supabase(data, format=True):
         inserted_filing["symbol"] = inserted_filing["tickers"][0]
     else:
         inserted_filing["symbol"] = None
+
+    inserted_filing.pop("tickers", None)
 
     response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
