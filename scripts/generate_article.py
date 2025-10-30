@@ -19,6 +19,35 @@ from handlers.support import clean_company_name
 logger = logging.getLogger(__name__)
 
 
+MONTH_MAPPING = {
+    "januari": "january",
+    "februari": "february",
+    "maret": "march",
+    "april": "april",
+    "mei": "may",
+    "juni": "june",
+    "juli": "july",
+    "agustus": "august",
+    "september": "september",
+    "oktober": "october",
+    "november": "november",
+    "desember": "december",
+
+    "jan": "january",
+    "feb": "february",
+    "mar": "march",
+    "apr": "april",
+    "mei": "may",
+    "jun": "june",
+    "jul": "july",
+    "agu": "august",
+    "sep": "september",
+    "okt": "october",
+    "nov": "november",
+    "des": "december"
+}
+
+
 class FilingArticleGenerator:
     """Class to handle generation of articles from filing PDFs."""
 
@@ -33,6 +62,17 @@ class FilingArticleGenerator:
         except json.JSONDecodeError:
             logger.error("Invalid JSON in sectors_data.json")
             self.sectors_data = {}
+
+        self.kw_inherit = ["waris", "inheritance", "hibah", "grant", "bequest"]
+        self.kw_mesop = ["mesop", "msop", "esop", "program opsi saham", "employee stock option"]
+        self.kw_freefloat = ["free float", "free-float", "freefloat", "pemenuhan porsi publik"]
+        self.kw_transfer = [
+            "transfer", "pemindahan", "konversi", "conversion",
+            "neutral", "tanpa perubahan", "alih", "pengalihan"
+        ]
+        self.kw_capital_restructuring = [
+            "restructuring", "capital reduction", "capital restructuring" 
+        ]
 
     @staticmethod
     def extract_datetime(text: str) -> str:
@@ -68,6 +108,25 @@ class FilingArticleGenerator:
             logger.warning(f"Could not extract number from: {input_string}")
             return None
     
+    def extract_flag_tags(self, text: str, list_flag_tags: list[str]) -> bool:
+        text_lower = (text or "").lower() 
+        return any(flag_tag in text_lower for flag_tag in list_flag_tags)
+
+    def parse_datetime_idn(self, date_ind: str) -> str:
+        parts = date_ind.split()
+        if len(parts) != 3:
+            return None 
+        
+        day, month, year = parts
+        month_eng = MONTH_MAPPING.get(month.lower())
+
+        if not month_eng:
+            return None
+        
+        english_date = f"{day} {month_eng} {year}"
+        english_obj =  datetime.strptime(english_date, "%d %B %Y")
+        return english_obj.strftime("%Y-%m-%d")
+
     def extract_info(self, text: str) -> Dict[str, Any]:
         """
         Extract filing information from PDF text.
@@ -79,6 +138,8 @@ class FilingArticleGenerator:
             Dict[str, Any]: Extracted filing information
         """
         lines = text.split("\n")
+
+        # print(f"\nlines extracted: {lines}")
 
         # Initialize article info with default values
         article_info = {
@@ -110,6 +171,7 @@ class FilingArticleGenerator:
         price_transactions = []
         amounts_transacted = []
         transaction_types = []
+        transaction_date = []
         transaction_type_map = {
             "pembelian": "buy",
             "penjualan": "sell"
@@ -122,12 +184,30 @@ class FilingArticleGenerator:
                     if pattern in line and i > 0:
                         article_info[field] = lines[i - 1].strip()
 
+                # flag for tags
+                if "go to indonesian page" in (line or "").lower():
+                    text_to_find = "\n".join(lines[i + 1:])
+                    flag_checks = {
+                        "inheritance": self.kw_inherit,
+                        "MESOP": self.kw_mesop,
+                        "free_float_requirement": self.kw_freefloat,
+                        "share-transfer": self.kw_transfer,
+                        "capital-restructuring": self.kw_capital_restructuring
+                    }
+
+                    article_info['flag_tags'] = None
+
+                    for tag, keyword in flag_checks.items():
+                        if self.extract_flag_tags(text_to_find, keyword):
+                            article_info["flag_tags"] = tag
+                            break
+
                 # Extract holder name (special case)
                 if "Nama Pemegang Saham" in line:
                     holder_name = " ".join(line.split()[3:])
                     holder_name_cleaned = clean_company_name(holder_name)
                     article_info['holder_name'] = holder_name_cleaned
-
+                    
                 # Extract category
                 if "Kategori" in line:
                     article_info["category"] = " ".join(line.split()[1:])
@@ -175,15 +255,18 @@ class FilingArticleGenerator:
                     try:
                         # Get the main transaction price
                         price_line = lines[i + 2].split(" ")
+                        # print(f"price line: {price_line}\n")
+
                         if len(price_line) > 1:
                             article_info["price"] = (
                                 self.extract_number(price_line[1]) or 0
                             )
-
+                        
                         for j in range(i + 2, len(lines)):
                             line_parts = lines[j].split(" ")
+                            
                             if len(line_parts) == 0:
-                                continue
+                                break
 
                             transaction_type = line_parts[0]
                             valid_types = ["Pembelian", "Penjualan", "Pengalihan"]
@@ -199,20 +282,35 @@ class FilingArticleGenerator:
                                         price_transactions.append(price)
 
                                 if len(line_parts) > 5:
+                                    # Extract amount transacted
                                     amount = self.extract_number(line_parts[5])
                                     if amount is not None:
                                         amounts_transacted.append(amount)
+                                    
+                                    # Extract transaction date if available
+                                    date_time_str = " ".join(line_parts[2:5])
+                                    if date_time_str: 
+                                        try:
+                                            parsed_date = self.parse_datetime_idn(date_time_str)
+                                            if parsed_date:
+                                                transaction_date.append(parsed_date)
+                                            else:
+                                                transaction_date.append(None)
+                                        except ValueError:
+                                            logger.warning(f"Could not parse transaction date: {date_time_str}")
+                                            transaction_date.append(None)
                             else:
                                   if ("Tujuan" in line_parts[0] or 
                                     "Jumlah" in line_parts[0] or 
                                     "Status" in line_parts[0]):
-                                    break
-
+                                    break 
+                            
                         article_info["price_transaction"]["prices"] = price_transactions
                         article_info["price_transaction"]["amount_transacted"] = (
                             amounts_transacted
                         )
                         article_info["price_transaction"]["types"] = transaction_types
+                        article_info['price_transaction']['dates'] = transaction_date
 
                     except (IndexError, ValueError) as e:
                         logger.warning(f"Error extracting transaction prices: {e}")
@@ -220,11 +318,13 @@ class FilingArticleGenerator:
         except Exception as e:
             logger.error(f"Error extracting filing information: {e}")
 
+        # print(f'\n extract_info: {json.dumps(article_info, indent=2)}\n')
         return article_info
 
     def generate_article_filings(
         self,
         pdf_url: str,
+        purpose: str,
         sub_sector: str,
         holder_type: str,
         data: str,
@@ -247,13 +347,12 @@ class FilingArticleGenerator:
 
         # Initialize article structure
         article = self._initialize_article_structure(
-            pdf_url, sub_sector, holder_type, uid
+            pdf_url, purpose, sub_sector, holder_type, uid
         )
 
         try:
             # Extract information from PDF text
             article_info = self.extract_info(data)
-            logger.debug(f"Extracted article info: {article_info}")
 
             # Populate article with extracted information
             self._populate_article_data(article, article_info)
@@ -271,6 +370,7 @@ class FilingArticleGenerator:
             logger.info(
                 f"Successfully generated article for {article_info.get('company_name', 'Unknown')}"
             )
+            # print('\n generated article: ', json.dumps(article, indent=2), '\n')
             return article
 
         except Exception as e:
@@ -279,9 +379,10 @@ class FilingArticleGenerator:
             return article
 
     def _initialize_article_structure(
-        self, pdf_url: str, sub_sector: str, holder_type: str, uid: Optional[str]
+        self, pdf_url: str, purpose: str, sub_sector: str, holder_type: str, uid: Optional[str]
     ) -> Dict[str, Any]:
         """Initialize basic article structure."""
+        print(f'\n check purpose: {purpose}\n')
         return {
             "title": "",
             "body": "",
@@ -289,7 +390,7 @@ class FilingArticleGenerator:
             "timestamp": "",
             "sub_sector": sub_sector,
             "sector": self.sectors_data.get(sub_sector, ""),
-            "tags": ["insider-trading"],
+            "tags": [],
             "tickers": [],
             "transaction_type": "",
             "holder_type": holder_type,
@@ -300,11 +401,12 @@ class FilingArticleGenerator:
             "share_percentage_transaction": 0.0,
             "amount_transaction": 0,
             "holder_name": "",
-            "purpose": "",
+            "purpose": purpose,
             "price": 0,
             "transaction_value": 0,
             "price_transaction": {"prices": [], "amount_transacted": []},
             "UID": uid,
+            "flag_tags": ""
         }
 
     def _populate_article_data(
@@ -312,6 +414,8 @@ class FilingArticleGenerator:
     ) -> None:
         """Populate article with extracted information."""
         try:
+            article['flag_tags'] = article_info.get('flag_tags')
+
             # Basic information
             article["title"] = (
                 f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
@@ -431,7 +535,7 @@ class FilingArticleGenerator:
                 article["holding_before"] - article["holding_after"]
             )
             article["holder_name"] = article_info["holder_name"]
-            article["purpose"] = article_info["purpose"]
+            # article["purpose"] = article_info["purpose"]
             article["price_transaction"] = article_info["price_transaction"]
 
         except Exception as e:
@@ -440,20 +544,21 @@ class FilingArticleGenerator:
     def _generate_title_and_body(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """Generate enhanced title and body using LLM."""
         try:
+            # print(f"\npayload before summarize: {article}\n")
             new_title, new_body = summarize_filing(article)
 
+            # print(new_title, new_body)
             if new_body:
                 article["body"] = new_body
 
                 # Get tags and sentiment
-                tags = get_tags_chat(new_body)
-                sentiment = get_sentiment_chat(new_body)
-
+                # tags = ""
+                
                 # Combine tags
-                if sentiment:
-                    tags.append(sentiment[0])
-                tags.append(article["tags"][0])  # Keep original "insider-trading" tag
-                article["tags"] = tags
+                # if sentiment:
+                #     tags.append(sentiment[0])
+                # tags.append(article["tags"][0])  # Keep original "insider-trading" tag
+                # article["tags"] = tags
 
             if new_title:
                 article["title"] = new_title
@@ -465,6 +570,7 @@ class FilingArticleGenerator:
 
     def _update_sector_information(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """Update sector information if missing."""
+        # print(f"\n article: {article}")
         try:
             if article.get("tickers"):
                 # Try to get sub_sector from companies data
@@ -501,6 +607,7 @@ _generator = FilingArticleGenerator()
 # Export functions for backward compatibility
 def generate_article_filings(
     pdf_url: str,
+    purpose: str,
     sub_sector: str,
     holder_type: str,
     data: str,
@@ -512,7 +619,7 @@ def generate_article_filings(
     This function maintains backward compatibility with the existing API.
     """
     return _generator.generate_article_filings(
-        pdf_url, sub_sector, holder_type, data, uid
+        pdf_url, purpose, sub_sector, holder_type, data, uid
     )
 
 
