@@ -414,8 +414,11 @@ def sanitize_filing_article(data, generate=True):
             formatted_dates = []
             for date in value:
                 try:
-                    parsed_date = datetime.strftime(date, "%Y-%m-%d")
-                    formatted_dates.append(parsed_date)
+                    if isinstance(date, str):
+                        formatted_dates.append(date)
+                    elif hasattr(date, 'strftime'):
+                        parsed_date = datetime.strftime(date, "%Y-%m-%d")
+                        formatted_dates.append(parsed_date)
                 except ValueError:
                     formatted_dates.append(None)
             price_transactions[key] = formatted_dates
