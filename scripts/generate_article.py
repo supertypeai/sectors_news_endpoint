@@ -178,6 +178,7 @@ class FilingArticleGenerator:
         }
         
         try:
+            transactions_extracted = False
             for i, line in enumerate(lines):
                 # Extract basic information
                 for field, pattern in extraction_patterns.items():
@@ -191,8 +192,7 @@ class FilingArticleGenerator:
                         "inheritance": self.kw_inherit,
                         "MESOP": self.kw_mesop,
                         "free_float_requirement": self.kw_freefloat,
-                        "share-transfer": self.kw_transfer,
-                        "capital-restructuring": self.kw_capital_restructuring
+                        "share-transfer": self.kw_transfer
                     }
 
                     article_info['flag_tags'] = None
@@ -205,7 +205,7 @@ class FilingArticleGenerator:
                 # Extract holder name (special case)
                 if "Nama Pemegang Saham" in line:
                     holder_name = " ".join(line.split()[3:])
-                    holder_name_cleaned = clean_company_name(holder_name)
+                    holder_name_cleaned = self.clean_company_name(holder_name)
                     article_info['holder_name'] = holder_name_cleaned
                     
                 # Extract category
@@ -252,68 +252,74 @@ class FilingArticleGenerator:
 
                 # Extract transaction prices
                 if "Jenis Transaksi Harga Transaksi" in line and i + 2 < len(lines):
-                    try:
-                        # Get the main transaction price
-                        price_line = lines[i + 2].split(" ")
-                        # print(f"price line: {price_line}\n")
+                    if not transactions_extracted and "Jenis Transaksi Harga Transaksi" in line and i + 2 < len(lines):
+                        transactions_extracted = True
+                        try:
+                            # Get the main transaction price
+                            price_line = lines[i + 2].split(" ")
+                            # print(f"price line: {price_line}\n")
 
-                        if len(price_line) > 1:
-                            article_info["price"] = (
-                                self.extract_number(price_line[1]) or 0
-                            )
-                        
-                        for j in range(i + 2, len(lines)):
-                            line_parts = lines[j].split(" ")
+                            if len(price_line) > 1:
+                                article_info["price"] = (
+                                    self.extract_number(price_line[1]) or 0
+                                )
                             
-                            if len(line_parts) == 0:
-                                break
+                            for j in range(i + 2, len(lines)):
+                                line_parts = lines[j].split(" ")
+                                # print(f'\n check line parts: {line_parts}')
+                                if len(line_parts) == 0:
+                                    break
 
-                            transaction_type = line_parts[0]
-                            valid_types = ["Pembelian", "Penjualan", "Pengalihan"]
+                                transaction_type = line_parts[0]
+                                valid_types = ["Pembelian", "Penjualan", "Pengalihan", 'Hibah', 'Waris']
 
-                            if transaction_type in valid_types:
-                                if transaction_type in ["Pembelian", "Penjualan"]:
-                                    transaction_types.append(transaction_type_map.get(transaction_type.lower(), ""))
-                                    article_info["price_transaction"]["types"] = transaction_types
+                                if transaction_type in valid_types:
+                                    if transaction_type in ["Pembelian", "Penjualan"]:
+                                        transaction_types.append(transaction_type_map.get(transaction_type.lower(), ""))
+                                    else:
+                                        transaction_types.append('others')
 
-                                if len(line_parts) > 1:
-                                    price = self.extract_number(line_parts[1])
-                                    if price is not None:
-                                        price_transactions.append(price)
+                                    if len(line_parts) > 1:
+                                        price = self.extract_number(line_parts[1])
+                                        if price is not None:
+                                            price_transactions.append(price)
 
-                                if len(line_parts) > 5:
-                                    # Extract amount transacted
-                                    amount = self.extract_number(line_parts[5])
-                                    if amount is not None:
-                                        amounts_transacted.append(amount)
-                                    
-                                    # Extract transaction date if available
-                                    date_time_str = " ".join(line_parts[2:5])
-                                    if date_time_str: 
-                                        try:
-                                            parsed_date = self.parse_datetime_idn(date_time_str)
-                                            if parsed_date:
-                                                transaction_date.append(parsed_date)
-                                            else:
+                                    if len(line_parts) > 5:
+                                        # Extract amount transacted
+                                        amount = self.extract_number(line_parts[5])
+                                        if amount is not None:
+                                            amounts_transacted.append(amount)
+                                        
+                                        # Extract transaction date if available
+                                        date_time_str = " ".join(line_parts[2:5])
+                                        if date_time_str: 
+                                            try:
+                                                parsed_date = self.parse_datetime_idn(date_time_str)
+                                                if parsed_date:
+                                                    transaction_date.append(parsed_date)
+                                                else:
+                                                    transaction_date.append(None)
+                                            except ValueError:
+                                                logger.warning(f"Could not parse transaction date: {date_time_str}")
                                                 transaction_date.append(None)
-                                        except ValueError:
-                                            logger.warning(f"Could not parse transaction date: {date_time_str}")
-                                            transaction_date.append(None)
-                            else:
-                                  if ("Tujuan" in line_parts[0] or 
+                                else:
+                                    if "Jenis" in line_parts[0]:
+                                        continue
+
+                                    if ("Tujuan" in line_parts[0] or 
                                     "Jumlah" in line_parts[0] or 
                                     "Status" in line_parts[0]):
-                                    break 
-                            
-                        article_info["price_transaction"]["prices"] = price_transactions
-                        article_info["price_transaction"]["amount_transacted"] = (
-                            amounts_transacted
-                        )
-                        article_info["price_transaction"]["types"] = transaction_types
-                        article_info['price_transaction']['dates'] = transaction_date
+                                        break 
 
-                    except (IndexError, ValueError) as e:
-                        logger.warning(f"Error extracting transaction prices: {e}")
+                            article_info["price_transaction"]["prices"] = price_transactions
+                            article_info["price_transaction"]["amount_transacted"] = (
+                                amounts_transacted
+                            )
+                            article_info["price_transaction"]["types"] = transaction_types
+                            article_info['price_transaction']['dates'] = transaction_date
+
+                        except (IndexError, ValueError) as e:
+                            logger.warning(f"Error extracting transaction prices: {e}")
 
         except Exception as e:
             logger.error(f"Error extracting filing information: {e}")
