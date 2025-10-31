@@ -186,7 +186,7 @@ def sanitize_filing(data):
     
     if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
-        share_percentage_transaction = float(f"{share_percentage_transaction:.4f}")
+        share_percentage_transaction = round(share_percentage_transaction, 5)
     else: 
         share_percentage_transaction = None 
 
@@ -235,6 +235,7 @@ def sanitize_filing(data):
         price_transactions.get("types")
     )
     unique_types = len(set(price_transactions.get("types")))
+    # Check mix type buy and sell
     if unique_types > 1:
         price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
     else:
@@ -242,6 +243,11 @@ def sanitize_filing(data):
         transaction_type = (
             "buy" if holding_before < holding_after else "sell"
         )
+
+    # Check if any other type
+    price_types = price_transactions.get('types')
+    if 'other' in price_types:
+        transaction_type = 'others'
 
     uid = (
         data.get("uid")
@@ -395,7 +401,7 @@ def sanitize_filing_article(data, generate=True):
     # Calculate values only if have valid data
     if share_percentage_before is not None and share_percentage_after is not None:
         share_percentage_transaction = abs(share_percentage_before - share_percentage_after)
-        share_percentage_transaction = float(f"{share_percentage_transaction:.4f}")
+        share_percentage_transaction = round(share_percentage_transaction, 5)
     else:
         share_percentage_transaction = None
     
@@ -432,6 +438,7 @@ def sanitize_filing_article(data, generate=True):
         price_transactions.get("types")
     )
     unique_types = len(set(price_transactions.get("types")))
+    # Check mix type buy and sell
     if unique_types > 1:
         price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
     else:
@@ -439,6 +446,11 @@ def sanitize_filing_article(data, generate=True):
         transaction_type = (
             "buy" if holding_before < holding_after else "sell"
         )
+
+    # Check if any other type 
+    price_types = price_transactions.get('types')
+    if 'other' in price_types:
+        transaction_type = 'others'
 
     uid = (
         data.get("uid")
@@ -541,17 +553,15 @@ def insert_insider_trading_supabase(data, format=True):
 
     if news:
         new_article_for_news = new_article.copy()
-
-        new_tags = []
-        old_tags = new_article_for_news.get('tags', [])
+        tags = set(new_article_for_news.get('tags', []))
+        tags.update({'insider-trading', 'ownership-changes'})
 
         # if 'investment' in old_tags: 
         #     new_tags.append('buy')
         # elif 'divestment' in old_tags:
         #     new_tags.append('sell') 
         
-        new_tags.append('insider-trading')
-        new_article_for_news['tags'] = sorted(set(new_tags))
+        new_article_for_news['tags'] = sorted(tags)
 
         news_article = News.from_filing(Filing(**new_article_for_news))
         response_news = (

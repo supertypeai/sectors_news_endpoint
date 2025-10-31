@@ -83,7 +83,7 @@ class PriceTransaction:
 
     self.price = sum_price_transaction / sum_transaction if sum_transaction != 0 else 0
     self.transaction_value = sum_price_transaction
-    self.price = float(f'{self.price:.4f}')
+    self.price = round(self.price, 5)
     return self.price, self.transaction_value
   
   def to_json(self):
