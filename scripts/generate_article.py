@@ -240,7 +240,7 @@ class FilingArticleGenerator:
 
                 # Extract purpose
                 if "Tujuan Transaksi" in line:
-                    article_info["purpose"] = " ".join(line.split()[2:])
+                    purpose = " ".join(line.split()[2:])
                     purpose = self.translator(purpose)
                     article_info['purpose'] = purpose
 
