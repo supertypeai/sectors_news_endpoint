@@ -244,7 +244,7 @@ def sanitize_filing(data):
 
     # Check if any other type
     price_types = price_transactions.get('types')
-    if 'other' in price_types:
+    if 'other' in price_types or 'others' in price_types:
         transaction_type = 'others'
 
     uid = (

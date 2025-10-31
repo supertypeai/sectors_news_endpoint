@@ -550,7 +550,7 @@ class FilingArticleGenerator:
                 article["holding_before"] - article["holding_after"]
             )
             article["holder_name"] = article_info["holder_name"]
-            # article["purpose"] = article_info["purpose"]
+            article["purpose"] = article_info["purpose"]
             article["price_transaction"] = article_info["price_transaction"]
 
         except Exception as e:
