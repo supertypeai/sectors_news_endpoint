@@ -55,12 +55,10 @@ def add_pdf_article():
         else request.form["UID"] if "UID" in request.form else None
     )
 
-    purpose = request.form["purpose"] if "source" in request.form else ""
-
     if file and file.filename.lower().endswith(".pdf"):
         file_path = save_file(file, current_app.config["UPLOAD_FOLDER"])
         text = extract_from_pdf(file_path)
-        text = generate_article_filings(source, purpose, sub_sector, type, text, uid)
+        text = generate_article_filings(source, sub_sector, type, text, uid)
         os.remove(file_path)
 
         try:

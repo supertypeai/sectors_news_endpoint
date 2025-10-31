@@ -13,6 +13,7 @@ from model.price_transaction import PriceTransaction
 from scripts.classifier import get_sentiment_chat, get_tags_chat
 from scripts.summary_filings import summarize_filing
 from handlers.support import clean_company_name
+from deep_translator import GoogleTranslator
 
 
 # Configure logging
@@ -107,7 +108,15 @@ class FilingArticleGenerator:
         except (ValueError, AttributeError):
             logger.warning(f"Could not extract number from: {input_string}")
             return None
-    
+        
+    def translator(self, text: str) -> str:
+        try:
+            translated = GoogleTranslator(source='auto', target='en').translate(text) 
+            return translated
+        except Exception as error:
+            logger.error(f'Error translator: {error}')
+            return None
+
     def extract_flag_tags(self, text: str, list_flag_tags: list[str]) -> bool:
         text_lower = (text or "").lower() 
         return any(flag_tag in text_lower for flag_tag in list_flag_tags)
@@ -232,6 +241,8 @@ class FilingArticleGenerator:
                 # Extract purpose
                 if "Tujuan Transaksi" in line:
                     article_info["purpose"] = " ".join(line.split()[2:])
+                    purpose = self.translator(purpose)
+                    article_info['purpose'] = purpose
 
                 # Extract datetime
                 if "Tanggal dan Waktu" in line or "Date and Time" in line:
@@ -330,7 +341,6 @@ class FilingArticleGenerator:
     def generate_article_filings(
         self,
         pdf_url: str,
-        purpose: str,
         sub_sector: str,
         holder_type: str,
         data: str,
@@ -353,7 +363,7 @@ class FilingArticleGenerator:
 
         # Initialize article structure
         article = self._initialize_article_structure(
-            pdf_url, purpose, sub_sector, holder_type, uid
+            pdf_url, sub_sector, holder_type, uid
         )
 
         try:
@@ -370,8 +380,8 @@ class FilingArticleGenerator:
             article = self._update_sector_information(article)
 
             # Clean up article (remove purpose if exists)
-            if "purpose" in article:
-                del article["purpose"]
+            # if "purpose" in article:
+            #     del article["purpose"]
 
             logger.info(
                 f"Successfully generated article for {article_info.get('company_name', 'Unknown')}"
@@ -385,10 +395,9 @@ class FilingArticleGenerator:
             return article
 
     def _initialize_article_structure(
-        self, pdf_url: str, purpose: str, sub_sector: str, holder_type: str, uid: Optional[str]
+        self, pdf_url: str, sub_sector: str, holder_type: str, uid: Optional[str]
     ) -> Dict[str, Any]:
         """Initialize basic article structure."""
-        print(f'\n check purpose: {purpose}\n')
         return {
             "title": "",
             "body": "",
@@ -407,7 +416,7 @@ class FilingArticleGenerator:
             "share_percentage_transaction": 0.0,
             "amount_transaction": 0,
             "holder_name": "",
-            "purpose": purpose,
+            "purpose": '',
             "price": 0,
             "transaction_value": 0,
             "price_transaction": {"prices": [], "amount_transacted": []},
@@ -613,7 +622,6 @@ _generator = FilingArticleGenerator()
 # Export functions for backward compatibility
 def generate_article_filings(
     pdf_url: str,
-    purpose: str,
     sub_sector: str,
     holder_type: str,
     data: str,
@@ -625,7 +633,7 @@ def generate_article_filings(
     This function maintains backward compatibility with the existing API.
     """
     return _generator.generate_article_filings(
-        pdf_url, purpose, sub_sector, holder_type, data, uid
+        pdf_url, sub_sector, holder_type, data, uid
     )
 
 
