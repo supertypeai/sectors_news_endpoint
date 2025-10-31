@@ -205,7 +205,7 @@ class FilingArticleGenerator:
                 # Extract holder name (special case)
                 if "Nama Pemegang Saham" in line:
                     holder_name = " ".join(line.split()[3:])
-                    holder_name_cleaned = self.clean_company_name(holder_name)
+                    holder_name_cleaned = clean_company_name(holder_name)
                     article_info['holder_name'] = holder_name_cleaned
                     
                 # Extract category
