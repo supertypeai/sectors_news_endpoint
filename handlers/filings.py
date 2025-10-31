@@ -356,6 +356,9 @@ def sanitize_filing(data):
 
     new_article["tags"] = list(set(new_article["tags"]))  # remove duplicates if any
 
+    if "purpose" in new_article:
+        del new_article["purpose"]
+
     return new_article
 
 
