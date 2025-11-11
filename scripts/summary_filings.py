@@ -183,34 +183,8 @@ class FilingSummarizer:
             logger.error(f"Error in summarize_filing: {e}")
             return "", ""
 
-    def _extract_filing_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract relevant data from filing for summarization.
-
-        Args:
-            data (Dict[str, Any]): Raw filing data
-
-        Returns:
-            Dict[str, Any]: Structured data for summarization
-        """
-        return {
-            "amount_transaction": data.get("amount_transaction", 0),
-            "holder_type": data.get("holder_type", ""),
-            "holding_after": data.get("holding_after", 0),
-            "holding_before": data.get("holding_before", 0),
-            "sector": data.get("sector", ""),
-            "sub_sector": data.get("sub_sector", ""),
-            "timestamp": data.get("timestamp", ""),
-            "title": data.get("title", ""),
-            "transaction_type": data.get("transaction_type", ""),
-            "purpose": data.get("purpose", ""),
-            "transactions": data.get("price_transaction", {}),
-            "ticker": data.get("tickers", [""])[0] if data.get("tickers") else "",
-            "company_name": self._extract_company_name(data.get("title", "")),
-            "holder_name": data.get("holder_name", ""),
-        }
-
     def summarize_filing_manual(
+        self,
         holder_name: str,
         company_name: str,
         tx_type: str,
@@ -219,8 +193,10 @@ class FilingSummarizer:
         holding_after: Optional[int],
         purpose_en: str,
     ) -> tuple[str, str]:
-        """Human-friendly title/body with minimal grammar rules."""
-        action_title = tx_type.replace("-", " ").title()
+        """
+        Human-friendly title/body with minimal grammar rules.
+        """
+        action_title = tx_type.replace("-", " ")
         if tx_type == "buy":
             action_verb = "bought"
             title = f"{holder_name} buys shares of {company_name}"
@@ -255,6 +231,33 @@ class FilingSummarizer:
         if purpose_en:
             body += f" The stated purpose of the transaction was {purpose_en.lower()}."
         return title, body
+    
+    def _extract_filing_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract relevant data from filing for summarization.
+
+        Args:
+            data (Dict[str, Any]): Raw filing data
+
+        Returns:
+            Dict[str, Any]: Structured data for summarization
+        """
+        return {
+            "amount_transaction": data.get("amount_transaction", 0),
+            "holder_type": data.get("holder_type", ""),
+            "holding_after": data.get("holding_after", 0),
+            "holding_before": data.get("holding_before", 0),
+            "sector": data.get("sector", ""),
+            "sub_sector": data.get("sub_sector", ""),
+            "timestamp": data.get("timestamp", ""),
+            "title": data.get("title", ""),
+            "transaction_type": data.get("transaction_type", ""),
+            "purpose": data.get("purpose", ""),
+            "transactions": data.get("price_transaction", {}),
+            "ticker": data.get("tickers", [""])[0] if data.get("tickers") else "",
+            "company_name": self._extract_company_name(data.get("title", "")),
+            "holder_name": data.get("holder_name", ""),
+        }
 
     def _extract_company_name(self, title: str) -> str:
         """

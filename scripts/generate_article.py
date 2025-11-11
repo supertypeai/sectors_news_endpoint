@@ -11,7 +11,7 @@ import logging
 
 from model.price_transaction import PriceTransaction
 from scripts.classifier import get_sentiment_chat, get_tags_chat
-from scripts.summary_filings import summarize_filing
+from scripts.summary_filings import summarize_filing, summarize_filing_manual
 from handlers.support import clean_company_name
 from deep_translator import GoogleTranslator
 
@@ -433,7 +433,7 @@ class FilingArticleGenerator:
 
             # Company Name 
             article['company_name'] = article_info.get('company_name')
-            
+
             # Basic information
             article["title"] = (
                 f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
@@ -536,7 +536,9 @@ class FilingArticleGenerator:
 
             # Transaction details
             price_transaction_types = article_info.get('price_transaction', {}).get('types')
-            if price_transaction_types and len(set(price_transaction_types)) == 1:
+            if 'others' in price_transaction_types:
+                article['transaction_type'] = 'others'
+            elif price_transaction_types and len(set(price_transaction_types)) == 1:
                 article["transaction_type"] = (
                     "buy"
                     if article["holding_before"] < article["holding_after"]
@@ -562,21 +564,26 @@ class FilingArticleGenerator:
     def _generate_title_and_body(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """Generate enhanced title and body using LLM."""
         try:
-            # print(f"\npayload before summarize: {article}\n")
-            new_title, new_body = summarize_filing(article)
+            # new_title, new_body = summarize_filing_manual(article)
+            
+            holder_name = article.get('holder_name')
+            holder_name = holder_name.rstrip('.')
+            company_name = article.get('company_name')
+            transaction_type = article.get('transaction_type').lower()
+            amount_transaction = article.get('amount_transaction')
+            holding_before = article.get('holding_before') 
+            holding_after = article.get('holding_after') 
+            purpose = article.get('purpose')
+            purpose = purpose.rstrip('.')
 
-            # print(new_title, new_body)
+            new_title, new_body = summarize_filing_manual(
+                holder_name, company_name, transaction_type, 
+                amount_transaction, holding_before, holding_after, 
+                purpose
+            )
+
             if new_body:
                 article["body"] = new_body
-
-                # Get tags and sentiment
-                # tags = ""
-                
-                # Combine tags
-                # if sentiment:
-                #     tags.append(sentiment[0])
-                # tags.append(article["tags"][0])  # Keep original "insider-trading" tag
-                # article["tags"] = tags
 
             if new_title:
                 article["title"] = new_title
