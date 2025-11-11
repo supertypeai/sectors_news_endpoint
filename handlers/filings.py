@@ -434,7 +434,7 @@ def sanitize_filing_article(data, generate=True):
     holder_name = data.get("holder_name")
     holder_name = clean_company_name(holder_name)
     company_name = data.get('company_name')
-    
+
     # calculate price and types
     price_transactions = data.get("price_transaction")
     for key, value in price_transactions.items():
@@ -487,20 +487,20 @@ def sanitize_filing_article(data, generate=True):
     #     tags.append(sentiment_tag)
     
     if transaction_type == 'buy':
-            new_article["tags"].append('bullish')
+        tags.append('bullish')
     elif transaction_type == 'sell':
-        new_article["tags"].append('bearish')
+        tags.append('bearish')
     else:
         if holding_before is not None and holding_after is not None:
             if holding_after > holding_before:
-                new_article["tags"].append('bullish')
+                tags.append('bullish')
             elif holding_after < holding_before:
-                new_article["tags"].append('bearish')
+                tags.append('bearish')
         elif share_percentage_before is not None and share_percentage_after is not None:
             if share_percentage_after > share_percentage_before:
-                new_article["tags"].append('bullish')
+                tags.append('bullish')
             elif share_percentage_after < share_percentage_before:
-                new_article["tags"].append('bearish')
+                tags.append('bearish')
 
     flag_tag = data.get('flag_tags')
     if flag_tag:
