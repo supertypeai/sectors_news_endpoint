@@ -8,7 +8,7 @@ from model.news_model import News
 from model.price_transaction import PriceTransaction
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
-from scripts.summary_filings import summarize_filing
+from scripts.summary_filings import summarize_filing, summarize_filing_manual
 from scripts.classifier import (
     get_tickers,
 )
@@ -296,7 +296,7 @@ def sanitize_filing(data):
     }
 
     # Prepare tags
-    tags_from_input = data.get('tags')
+    tags_from_input = data.get('tags') or "" 
     tag_list = [tags.strip() for tags in tags_from_input.split(',') if tags.strip()]
     sorted_tags = sorted(tag_list)
     new_article['tags'] = sorted_tags
@@ -304,6 +304,21 @@ def sanitize_filing(data):
     if not data.get('tags') or data.get('tags') == "":
         # Sentiment tag
         # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
+        if transaction_type == 'buy':
+            new_article["tags"].append('bullish')
+        elif transaction_type == 'sell':
+            new_article["tags"].append('bearish')
+        else:
+            if holding_before is not None and holding_after is not None:
+                if holding_after > holding_before:
+                    new_article["tags"].append('bullish')
+                elif holding_after < holding_before:
+                    new_article["tags"].append('bearish')
+            elif share_percentage_before is not None and share_percentage_after is not None:
+                if share_percentage_after > share_percentage_before:
+                    new_article["tags"].append('bullish')
+                elif share_percentage_after < share_percentage_before:
+                    new_article["tags"].append('bearish')
 
         # Buy Sell tag
         # if transaction_type == "buy":
@@ -334,7 +349,11 @@ def sanitize_filing(data):
         tags_sorted = sorted([tag for tag in new_article['tags'] if tag])
         new_article["tags"] = tags_sorted
 
-    new_title, new_body = summarize_filing(new_article)
+    new_title, new_body = summarize_filing_manual(
+        holder_name, company_name, transaction_type, 
+        amount_transaction, holding_before, holding_after, 
+        purpose
+    )
 
     if len(new_body) > 0:
         new_article["body"] = new_body
@@ -410,10 +429,12 @@ def sanitize_filing_article(data, generate=True):
         # transaction_type = data.get("transaction_type").lower() if data.get("transaction_type") else None
         amount_transaction = None
     
+    # Holder and company name
     holder_type = data.get("holder_type")
     holder_name = data.get("holder_name")
     holder_name = clean_company_name(holder_name)
-
+    company_name = data.get('company_name')
+    
     # calculate price and types
     price_transactions = data.get("price_transaction")
     for key, value in price_transactions.items():
@@ -456,12 +477,30 @@ def sanitize_filing_article(data, generate=True):
         else data.get("UID") if data.get("UID") else None
     )
 
+    purpose = data.get('purpose', None)
+
     # Build tags list 
     tags = []
 
     # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
     # if sentiment_tag:
     #     tags.append(sentiment_tag)
+    
+    if transaction_type == 'buy':
+            new_article["tags"].append('bullish')
+    elif transaction_type == 'sell':
+        new_article["tags"].append('bearish')
+    else:
+        if holding_before is not None and holding_after is not None:
+            if holding_after > holding_before:
+                new_article["tags"].append('bullish')
+            elif holding_after < holding_before:
+                new_article["tags"].append('bearish')
+        elif share_percentage_before is not None and share_percentage_after is not None:
+            if share_percentage_after > share_percentage_before:
+                new_article["tags"].append('bullish')
+            elif share_percentage_after < share_percentage_before:
+                new_article["tags"].append('bearish')
 
     flag_tag = data.get('flag_tags')
     if flag_tag:
@@ -506,7 +545,11 @@ def sanitize_filing_article(data, generate=True):
     }
 
     if generate:
-        new_title, new_body = summarize_filing(new_article)
+        new_title, new_body = summarize_filing_manual(
+            holder_name, company_name, transaction_type, 
+            amount_transaction, holding_before, holding_after, 
+            purpose
+        )
 
         if len(new_body) > 0:
             new_article["body"] = new_body

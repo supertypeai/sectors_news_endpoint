@@ -431,6 +431,9 @@ class FilingArticleGenerator:
         try:
             article['flag_tags'] = article_info.get('flag_tags')
 
+            # Company Name 
+            article['company_name'] = article_info.get('company_name')
+            
             # Basic information
             article["title"] = (
                 f"Informasi insider trading {article_info['holder_name']} dalam {article_info['company_name']}"
