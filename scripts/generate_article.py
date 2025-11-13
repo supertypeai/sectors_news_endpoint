@@ -544,12 +544,6 @@ class FilingArticleGenerator:
                     if article["holding_before"] < article["holding_after"]
                     else "sell"
                 )
-            else:
-                article["transaction_type"] = (
-                    "buy"
-                    if article["holding_before"] < article["holding_after"]
-                    else "sell"
-                )
 
             article["amount_transaction"] = abs(
                 article["holding_before"] - article["holding_after"]

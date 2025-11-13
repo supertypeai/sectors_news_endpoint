@@ -577,7 +577,7 @@ def insert_insider_trading_supabase(data, format=True):
     if format:
         new_article = sanitize_filing(data=data)
     else:
-        new_article = sanitize_filing_article(data=data, generate=False)
+        new_article = sanitize_filing_article(data=data, generate=True)
 
     news = True
 
