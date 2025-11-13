@@ -293,6 +293,7 @@ def sanitize_filing(data):
         "price": price,
         "transaction_value": transaction_value,
         "UID": uid,
+        "company_name": company_name
     }
 
     # Prepare tags
@@ -319,12 +320,6 @@ def sanitize_filing(data):
         #             new_article["tags"].append('bullish')
         #         elif share_percentage_after < share_percentage_before:
         #             new_article["tags"].append('bearish')
-
-        # Buy Sell tag
-        # if transaction_type == "buy":
-        #     new_article["tags"].extend(['investment', sentiment_tag])
-        # elif transaction_type == 'sell':
-        #     new_article["tags"].extend(['divestment', sentiment_tag])
 
         # Prepare take over tag rule 
         if share_percentage_before is not None and share_percentage_after is not None:
@@ -378,9 +373,6 @@ def sanitize_filing(data):
         new_article["title"] = new_title
 
     new_article["tags"] = list(set(new_article["tags"]))  # remove duplicates if any
-
-    if "purpose" in new_article:
-        del new_article["purpose"]
 
     return new_article
 
@@ -506,11 +498,6 @@ def sanitize_filing_article(data, generate=True):
     if flag_tag:
         tags.append(flag_tag)
 
-    # if transaction_type == 'buy':
-    #     tags.append('investment')
-    # elif transaction_type == 'sell':
-    #     tags.append('divestment')
-
     # Prepare take over tag rule 
     if share_percentage_before is not None and share_percentage_after is not None:
         if (share_percentage_before < 50 <= share_percentage_after) or (share_percentage_before >= 50 > share_percentage_after):
@@ -542,6 +529,8 @@ def sanitize_filing_article(data, generate=True):
         "transaction_value": transaction_value,
         "price_transaction": price_transactions,
         "UID": uid,
+        "purpose": purpose,
+        "company_name": company_name
     }
 
     if generate:
@@ -556,9 +545,6 @@ def sanitize_filing_article(data, generate=True):
 
         if len(new_title) > 0:
             new_article["title"] = new_title
-
-    if "purpose" in new_article:
-        del new_article["purpose"]
 
     return new_article
 
@@ -594,15 +580,20 @@ def insert_insider_trading_supabase(data, format=True):
 
     if news:
         new_article_for_news = new_article.copy()
+        
+        # Prepare news tags 
         tags = set(new_article_for_news.get('tags', []))
         tags.update({'insider-trading', 'ownership-changes'})
-
-        # if 'investment' in old_tags: 
-        #     new_tags.append('buy')
-        # elif 'divestment' in old_tags:
-        #     new_tags.append('sell') 
-        
         new_article_for_news['tags'] = sorted(tags)
+        
+        # Prepare summarize title and body with llm 
+        new_title, new_body = summarize_filing(new_article_for_news)
+        new_article_for_news['title'] = new_title 
+        new_article_for_news['body'] = new_body
+
+        # Pop purpose 
+        new_article_for_news.pop("purpose", None)
+        new_article_for_news.pop("company_name", None)
 
         news_article = News.from_filing(Filing(**new_article_for_news))
         response_news = (
@@ -615,7 +606,10 @@ def insert_insider_trading_supabase(data, format=True):
     else:
         inserted_filing["symbol"] = None
 
+    # Pop unused data
     inserted_filing.pop("tickers", None)
+    inserted_filing.pop("purpose", None)
+    inserted_filing.pop("company_name", None)
 
     response = supabase.table("idx_filings").insert(inserted_filing).execute()
 

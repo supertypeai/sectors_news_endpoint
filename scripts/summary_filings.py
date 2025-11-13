@@ -70,7 +70,7 @@ class FilingSummarizer:
                 (
                     "user",
                     """Analyze this filing transaction and provide:
-            1. A title following this structure: (Shareholder name) (Transaction type) Transaction of (Company)
+            1. A title following this structure: (Shareholder name) (Transaction type) Shares of (Company)
             2. A one-paragraph summary (max 150 tokens) focusing on: entities involved, transaction type, ownership changes, purpose, and significance
 
             Filing: {text}
