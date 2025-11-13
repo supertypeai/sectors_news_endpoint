@@ -583,7 +583,7 @@ def insert_insider_trading_supabase(data, format=True):
         
         # Prepare news tags 
         tags = set(new_article_for_news.get('tags', []))
-        tags.update({'insider-trading', 'ownership-changes'})
+        tags.update({'Insider Trading'})
         new_article_for_news['tags'] = sorted(tags)
         
         # Prepare summarize title and body with llm 
