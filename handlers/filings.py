@@ -305,21 +305,22 @@ def sanitize_filing(data):
     if not data.get('tags') or data.get('tags') == "":
         # Sentiment tag
         # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
-        # if transaction_type == 'buy':
-        #     new_article["tags"].append('bullish')
-        # elif transaction_type == 'sell':
-        #     new_article["tags"].append('bearish')
-        # else:
-        #     if holding_before is not None and holding_after is not None:
-        #         if holding_after > holding_before:
-        #             new_article["tags"].append('bullish')
-        #         elif holding_after < holding_before:
-        #             new_article["tags"].append('bearish')
-        #     elif share_percentage_before is not None and share_percentage_after is not None:
-        #         if share_percentage_after > share_percentage_before:
-        #             new_article["tags"].append('bullish')
-        #         elif share_percentage_after < share_percentage_before:
-        #             new_article["tags"].append('bearish')
+        
+        if transaction_type == 'buy':
+            new_article["tags"].append('bullish')
+        elif transaction_type == 'sell':
+            new_article["tags"].append('bearish')
+        else:
+            if holding_before is not None and holding_after is not None:
+                if holding_after > holding_before:
+                    new_article["tags"].append('bullish')
+                elif holding_after < holding_before:
+                    new_article["tags"].append('bearish')
+            elif share_percentage_before is not None and share_percentage_after is not None:
+                if share_percentage_after > share_percentage_before:
+                    new_article["tags"].append('bullish')
+                elif share_percentage_after < share_percentage_before:
+                    new_article["tags"].append('bearish')
 
         # Prepare take over tag rule 
         if share_percentage_before is not None and share_percentage_after is not None:
@@ -478,21 +479,21 @@ def sanitize_filing_article(data, generate=True):
     # if sentiment_tag:
     #     tags.append(sentiment_tag)
     
-    # if transaction_type == 'buy':
-    #     tags.append('bullish')
-    # elif transaction_type == 'sell':
-    #     tags.append('bearish')
-    # else:
-    #     if holding_before is not None and holding_after is not None:
-    #         if holding_after > holding_before:
-    #             tags.append('bullish')
-    #         elif holding_after < holding_before:
-    #             tags.append('bearish')
-    #     elif share_percentage_before is not None and share_percentage_after is not None:
-    #         if share_percentage_after > share_percentage_before:
-    #             tags.append('bullish')
-    #         elif share_percentage_after < share_percentage_before:
-    #             tags.append('bearish')
+    if transaction_type == 'buy':
+        tags.append('bullish')
+    elif transaction_type == 'sell':
+        tags.append('bearish')
+    else:
+        if holding_before is not None and holding_after is not None:
+            if holding_after > holding_before:
+                tags.append('bullish')
+            elif holding_after < holding_before:
+                tags.append('bearish')
+        elif share_percentage_before is not None and share_percentage_after is not None:
+            if share_percentage_after > share_percentage_before:
+                tags.append('bullish')
+            elif share_percentage_after < share_percentage_before:
+                tags.append('bearish')
 
     flag_tag = data.get('flag_tags')
     if flag_tag:
@@ -605,6 +606,9 @@ def insert_insider_trading_supabase(data, format=True):
         inserted_filing["symbol"] = inserted_filing["tickers"][0]
     else:
         inserted_filing["symbol"] = None
+
+    # Add static value
+    inserted_filing['filings_input_source'] = 'Manual'
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
