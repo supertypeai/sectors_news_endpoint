@@ -566,7 +566,7 @@ def insert_insider_trading_supabase(data, format=True):
     else:
         new_article = sanitize_filing_article(data=data, generate=True)
 
-    news = True
+    news = False
 
     # Check if UID already exists
     if new_article.get("UID"):
@@ -615,7 +615,7 @@ def insert_insider_trading_supabase(data, format=True):
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
 
-    response = supabase.table("idx_filings").insert(inserted_filing).execute()
+    response = supabase.table("idx_filings_v2").insert(inserted_filing).execute()
 
     if news:
         return {
