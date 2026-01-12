@@ -425,6 +425,7 @@ def sanitize_filing_article(data, generate=True):
             amount_transaction = abs(holding_before - holding_after)
         else: 
             amount_transaction = None
+    amount_transaction = safe_int(amount_transaction)
     
     # Holder and company name
     holder_type = data.get("holder_type")
