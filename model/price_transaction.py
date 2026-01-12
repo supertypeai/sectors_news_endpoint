@@ -3,8 +3,6 @@ import pandas as pd
 
 
 class PriceTransaction:
-  prices: list[float] = []
-  amount_transacted: list[float] = []
   def __init__(self, amount_transacted: list[float], prices: list[float], transaction_type: list[str]):
     """
     Initializes the Transaction object.
@@ -38,34 +36,50 @@ class PriceTransaction:
     total_sell_shares = df[df['type'] == 'sell']['amount_transacted'].sum()
     total_sell_value = df[df['type'] == 'sell']['value'].sum()
 
-    # Calculate the net difference between buys and sells
-    net_value = total_buy_value - total_sell_value
-    net_shares = total_buy_shares - total_sell_shares
+    # Calculate total shares and value for 'others' transactions
+    total_others_shares = df[~df['type'].isin(['buy', 'sell'])]['amount_transacted'].sum()
+    total_others_value = df[~df['type'].isin(['buy', 'sell'])]['value'].sum()
 
-    # Determine the overall transaction type
-    if net_value > 0:
-      transaction_type = 'buy'
-    elif net_value < 0:
-      transaction_type = 'sell'
-    else: 
-      transaction_type = 'other'
-    
-    # Calculate the weighted average price
-    if net_shares != 0:
-        weighted_average_price = abs(net_value / net_shares)
+    # Check if there are any buy or sell transactions
+    has_buy_sell = (total_buy_shares > 0) or (total_sell_shares > 0)
+
+    if has_buy_sell:
+        # Calculate the net difference between buys and sells
+        net_value = total_buy_value - total_sell_value
+        net_shares = total_buy_shares - total_sell_shares
+
+        if net_value > 0:
+            transaction_type = 'buy'
+        elif net_value < 0:
+            transaction_type = 'sell'
+        else: 
+            transaction_type = 'others'
+        
+        # Calculate the weighted average price
+        if net_shares != 0:
+            weighted_average_price = abs(net_value / net_shares)
+        else:
+            weighted_average_price = 0.0
+
+        result = {
+            "price": round(weighted_average_price, 3),
+            "transaction_value": abs(int(net_value)),
+            "transaction_type": transaction_type
+        }
+
     else:
-        weighted_average_price = 0 
+        # Only "others" transactions exist
+        if total_others_shares > 0:
+            weighted_average_price = total_others_value / total_others_shares
+        else:
+            weighted_average_price = 0.0
+        
+        result = {
+            "price": round(weighted_average_price, 3),
+            "transaction_value": abs(int(total_others_value)),
+            "transaction_type": "others"
+        }
 
-    result = {
-        "price": float(f'{weighted_average_price:.4f}'),
-        "transaction_value": int(abs(net_value)),
-        "transaction_type": transaction_type
-    }
-
-    return result
-  
-  def get_price_transaction_value_two_values(self):
-    result = self.calculate_two_transaction_type()
     return result.get('price'), result.get('transaction_value'), result.get('transaction_type')
     
   def get_price_transaction_value(self):
@@ -83,7 +97,7 @@ class PriceTransaction:
 
     self.price = sum_price_transaction / sum_transaction if sum_transaction != 0 else 0
     self.transaction_value = sum_price_transaction
-    self.price = round(self.price, 5)
+    self.price = round(self.price, 3)
     return self.price, self.transaction_value
   
   def to_json(self):

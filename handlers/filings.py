@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify, current_app
-from handlers.articles import sanitize_insert
 from middleware.api_key import require_api_key
 from database import supabase, sectors_data
 from datetime import datetime
+
+from handlers.articles import sanitize_insert
 from model.filings_model import Filing
 from model.news_model import News
 from model.price_transaction import PriceTransaction
@@ -13,10 +14,11 @@ from scripts.classifier import (
     get_tickers,
 )
 from handlers.support import (
-    safe_float, safe_int, clean_company_name, add_sentiment_tag,
-    convert_price_transaction, get_subsector_by_ticker,
+    safe_float, safe_int, clean_company_name, detect_tags_for_new_document,
+    convert_price_transaction, get_subsector_by_ticker, translator,
     INHERIT, MESOP, FREEFLOAT, TRANSFER
 )
+
 import os
 
 filings_module = Blueprint("filings", __name__)
@@ -401,7 +403,9 @@ def sanitize_filing_article(data, generate=True):
     )
     sector = sectors_data[sub_sector] if sub_sector in sectors_data.keys() else ""
 
-    tickers = data.get("tickers", [])
+    tickers = data.get("symbol", '') or data.get('tickers', [])
+    if isinstance(tickers, str):
+        tickers = [tickers]
 
     holding_before = safe_int(data.get("holding_before"))
     holding_after = safe_int(data.get("holding_after"))
@@ -415,12 +419,12 @@ def sanitize_filing_article(data, generate=True):
     else:
         share_percentage_transaction = None
     
-    if holding_before is not None and holding_after is not None:
-        # transaction_type = "buy" if holding_before < holding_after else "sell"
-        amount_transaction = abs(holding_before - holding_after)
-    else: 
-        # transaction_type = data.get("transaction_type").lower() if data.get("transaction_type") else None
-        amount_transaction = None
+    amount_transaction = data.get('amount_transaction', None)
+    if not amount_transaction:
+        if holding_before is not None and holding_after is not None:
+            amount_transaction = abs(holding_before - holding_after)
+        else: 
+            amount_transaction = None
     
     # Holder and company name
     holder_type = data.get("holder_type")
@@ -449,20 +453,7 @@ def sanitize_filing_article(data, generate=True):
         price_transactions.get("prices"), 
         price_transactions.get("types")
     )
-    unique_types = len(set(price_transactions.get("types")))
-    # Check mix type buy and sell
-    if unique_types > 1:
-        price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
-    else:
-        price, transaction_value = price_calculation.get_price_transaction_value()
-        transaction_type = (
-            "buy" if holding_before < holding_after else "sell"
-        )
-
-    # Check if any other type 
-    price_types = price_transactions.get('types')
-    if 'other' in price_types:
-        transaction_type = 'others'
+    price, transaction_value, transaction_type = price_calculation.calculate_two_transaction_type() 
 
     uid = (
         data.get("uid")
@@ -470,53 +461,28 @@ def sanitize_filing_article(data, generate=True):
         else data.get("UID") if data.get("UID") else None
     )
 
-    purpose = data.get('purpose', None)
+    # Standardize the format
+    price_transactions = convert_price_transaction(price_transactions)
 
     # Build tags list 
-    tags = []
-
-    # sentiment_tag = add_sentiment_tag(share_percentage_before, share_percentage_after)
-    # if sentiment_tag:
-    #     tags.append(sentiment_tag)
+    purpose = data.get('purpose', None)
+    tags = detect_tags_for_new_document(
+        purpose, share_percentage_before, 
+        share_percentage_after, transaction_type, price_transactions
+    ) 
     
-    if transaction_type == 'buy':
-        tags.append('bullish')
-    elif transaction_type == 'sell':
-        tags.append('bearish')
-    else:
-        if holding_before is not None and holding_after is not None:
-            if holding_after > holding_before:
-                tags.append('bullish')
-            elif holding_after < holding_before:
-                tags.append('bearish')
-        elif share_percentage_before is not None and share_percentage_after is not None:
-            if share_percentage_after > share_percentage_before:
-                tags.append('bullish')
-            elif share_percentage_after < share_percentage_before:
-                tags.append('bearish')
+    # translate purpose 
+    purpose = translator(purpose)
 
-    flag_tag = data.get('flag_tags')
-    if flag_tag:
-        tags.append(flag_tag)
-
-    # Prepare take over tag rule 
-    if share_percentage_before is not None and share_percentage_after is not None:
-        if (share_percentage_before < 50 <= share_percentage_after) or (share_percentage_before >= 50 > share_percentage_after):
-            tags.append('takeover')
-
-    tags = sorted(set(tags))
-
-    price_transactions = convert_price_transaction(price_transactions)
-    
     new_article = {
         "title": title,
         "body": body,
         "source": source,
+        "tickers": tickers,
         "timestamp": timestamp.isoformat(),
         "sector": sector,
         "sub_sector": sub_sector,
         "tags": tags,
-        "tickers": tickers,
         "transaction_type": transaction_type,
         "holder_type": holder_type,
         "holding_before": holding_before,
@@ -582,10 +548,11 @@ def insert_insider_trading_supabase(data, format=True):
     if news:
         new_article_for_news = new_article.copy()
         
+        new_article_for_news.pop('tags', None)
+        
         # Prepare news tags 
-        tags = set(new_article_for_news.get('tags', []))
-        tags.update({'Insider Trading'})
-        new_article_for_news['tags'] = sorted(tags)
+        tag = ['Insider Trading']
+        new_article_for_news.update({'tags': tag})
         
         # Prepare summarize title and body with llm 
         new_title, new_body = summarize_filing(new_article_for_news)
@@ -615,7 +582,7 @@ def insert_insider_trading_supabase(data, format=True):
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
 
-    response = supabase.table("idx_filings").insert(inserted_filing).execute()
+    response = supabase.table("idx_filings_v2").insert(inserted_filing).execute()
 
     if news:
         return {

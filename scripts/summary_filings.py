@@ -74,6 +74,9 @@ class FilingSummarizer:
             2. A one-paragraph summary (max 150 tokens) focusing on: entities involved, transaction type, ownership changes, purpose, and significance
 
             Filing: {text}
+
+            Note: 
+            - Use thousands separator with comma (e.g., 83,420,100) and use dot for decimal separator.
             {format_instructions}""",
                 ),
             ]
