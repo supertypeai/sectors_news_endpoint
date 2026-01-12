@@ -426,7 +426,7 @@ def sanitize_filing_article(data, generate=True):
         else: 
             amount_transaction = None
     amount_transaction = safe_int(amount_transaction)
-    
+
     # Holder and company name
     holder_type = data.get("holder_type")
     holder_name = data.get("holder_name")
@@ -577,14 +577,13 @@ def insert_insider_trading_supabase(data, format=True):
 
     # Add static value
     inserted_filing['source_is_manual'] = True
-    inserted_filing['filings_input_source'] = 'manual'
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
 
-    response = supabase.table("idx_filings_v2").insert(inserted_filing).execute()
+    response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
     if news:
         return {
