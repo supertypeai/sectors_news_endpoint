@@ -576,6 +576,7 @@ def insert_insider_trading_supabase(data, format=True):
 
     # Add static value
     inserted_filing['source_is_manual'] = True
+    inserted_filing['filings_input_source'] = 'manual'
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
