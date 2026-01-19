@@ -672,10 +672,17 @@ def update_insider_trading_supabase(data, is_generate: bool = False):
                         "id", record["id"]
                     ).execute()
 
+    symbol = new_article['tickers'][0]
+    new_article['symbol'] = symbol
+
+    new_article.pop('company_name', None)
+    new_article.pop('purpose', None)
+    new_article.pop('tickers', None)
+    
     response = (
         supabase.table("idx_filings").update(new_article).eq("id", record_id).execute()
     )
-
+   
     return {
         "message": "Record updated successfully from table idx_filings",
         "data": response.data,
