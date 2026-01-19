@@ -435,26 +435,43 @@ def sanitize_filing_article(data, generate=True):
 
     # calculate price and types
     price_transactions = data.get("price_transaction")
-    for key, value in price_transactions.items():
-        if key == 'dates':
-            formatted_dates = []
-            for date in value:
-                try:
-                    if isinstance(date, str):
-                        formatted_dates.append(date)
-                    elif hasattr(date, 'strftime'):
-                        parsed_date = datetime.strftime(date, "%Y-%m-%d")
-                        formatted_dates.append(parsed_date)
-                except ValueError:
-                    formatted_dates.append(None)
-            price_transactions[key] = formatted_dates
-            
-    price_calculation = PriceTransaction(
-        price_transactions.get("amount_transacted"), 
-        price_transactions.get("prices"), 
-        price_transactions.get("types")
-    )
-    price, transaction_value, transaction_type = price_calculation.calculate_two_transaction_type() 
+    if isinstance(price_transactions, dict):
+        for key, value in price_transactions.items():
+            if key == 'dates':
+                formatted_dates = []
+                for date in value:
+                    try:
+                        if isinstance(date, str):
+                            formatted_dates.append(date)
+                        elif hasattr(date, 'strftime'):
+                            parsed_date = datetime.strftime(date, "%Y-%m-%d")
+                            formatted_dates.append(parsed_date)
+                    except ValueError:
+                        formatted_dates.append(None)
+                price_transactions[key] = formatted_dates
+    
+        price_calculation = PriceTransaction(
+            price_transactions.get("amount_transacted"), 
+            price_transactions.get("prices"), 
+            price_transactions.get("types")
+        )
+        price, transaction_value, transaction_type = price_calculation.calculate_two_transaction_type() 
+        # Standardize the format
+        price_transactions = convert_price_transaction(price_transactions)
+
+    elif isinstance(price_transactions, list): 
+        amount_transacted = []
+        prices = []
+        types = []
+
+        for price_transaction in price_transactions:
+            amount_transacted.append(price_transaction.get("amount_transacted", 0))
+            prices.append(price_transaction.get("price", 0))
+            types.append(price_transaction.get("type", "buy"))
+        
+        price_calculation = PriceTransaction(amount_transacted, prices, types)
+        price, transaction_value, transaction_type = price_calculation.calculate_two_transaction_type()
+        price_transactions = price_transactions
 
     uid = (
         data.get("uid")
@@ -462,16 +479,16 @@ def sanitize_filing_article(data, generate=True):
         else data.get("UID") if data.get("UID") else None
     )
 
-    # Standardize the format
-    price_transactions = convert_price_transaction(price_transactions)
-
     # Build tags list 
     purpose = data.get('purpose', None)
-    tags = detect_tags_for_new_document(
-        purpose, share_percentage_before, 
-        share_percentage_after, transaction_type, price_transactions
-    ) 
-    
+
+    tags = data.get('tags') or []
+    detected_tags = detect_tags_for_new_document(
+            purpose, share_percentage_before, 
+            share_percentage_after, transaction_type, price_transactions
+        ) 
+    final_tags = sorted(set(tags + detected_tags))
+
     # translate purpose 
     purpose = translator(purpose)
 
@@ -483,7 +500,7 @@ def sanitize_filing_article(data, generate=True):
         "timestamp": timestamp.isoformat(),
         "sector": sector,
         "sub_sector": sub_sector,
-        "tags": tags,
+        "tags": final_tags,
         "transaction_type": transaction_type,
         "holder_type": holder_type,
         "holding_before": holding_before,
@@ -615,16 +632,17 @@ def update_insider_trading_supabase(data, is_generate: bool = False):
     new_article = sanitize_filing_article(data, generate=is_generate)
     record_id = data.get("id")
     if not record_id:
-        return jsonify({"error": "Record ID is required", "status_code": 400})
+        return print({"error": "Record ID is required", "status_code": 400})
 
     # Compare old and new article data
     if old_article.data:
         old_data = old_article.data[0]
         changes = {}
 
-        for key in ["price_transaction"]:
-            if old_data.get(key) != new_article.get(key):
-                changes[key] = {"old": old_data.get(key), "new": new_article.get(key)}
+        if old_data.get("price_transaction") != new_article.get("price_transaction"):
+            changes["price_transaction"] = {
+                "old": old_data.get("price_transaction"), "new": new_article.get("price_transaction")
+            }
         if changes:
             print(f"Data changes detected: {changes}")
 
@@ -644,46 +662,15 @@ def update_insider_trading_supabase(data, is_generate: bool = False):
                 if record["id"] != record_id:  # Update the paired record
                     other_article = record.copy()
             
-                    other_article["price_transaction"] = new_article[
-                        "price_transaction"
-                    ]
-                    other_holding_before = other_article['holding_before']
-                    other_holding_after = other_article['holding_after']
-
-                    other_price_transactions = other_article['price_transaction']
-                    price_calculation = PriceTransaction(
-                        other_price_transactions.get("amount_transacted"), 
-                        other_price_transactions.get("prices"), 
-                        other_price_transactions.get("types")
-                    )
-                    # Calculation price for the other data that have a matching uid
-                    unique_types = len(set(other_price_transactions.get("types")))
-                    if unique_types > 1:
-                        price, transaction_value, transaction_type = price_calculation.get_price_transaction_value_two_values() 
-                    else:
-                        price, transaction_value = price_calculation.get_price_transaction_value()
-                        transaction_type = (
-                            "buy" if other_holding_before < other_holding_after else "sell"
-                        )
-
-                    other_article["price"] = price
-                    other_article["transaction_value"] = transaction_value
-                    other_article['transaction_type'] = transaction_type
-                    other_article["amount_transaction"] = new_article[
-                        "amount_transaction"
-                    ]
+                    other_article["price_transaction"] = new_article["price_transaction"]
+                    other_article["price"] = new_article["price"]
+                    other_article["transaction_value"] = new_article["transaction_value"]
+                    other_article["transaction_type"] = new_article["transaction_type"]
+                    other_article["amount_transaction"] = new_article["amount_transaction"]
 
                     supabase.table("idx_filings").update(other_article).eq(
                         "id", record["id"]
                     ).execute()
-
-            # Recalculate price and transaction_value for current record
-            # price, transaction_value = PriceTransaction(
-            #     new_article["price_transaction"]["amount_transacted"],
-            #     new_article["price_transaction"]["prices"],
-            # ).get_price_transaction_value()
-            # new_article["price"] = price
-            # new_article["transaction_value"] = transaction_value
 
     response = (
         supabase.table("idx_filings").update(new_article).eq("id", record_id).execute()
