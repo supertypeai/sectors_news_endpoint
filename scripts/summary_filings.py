@@ -63,21 +63,38 @@ class FilingSummarizer:
             [
                 (
                     "system",
-                    """You are a financial analyst. Provide direct, concise summaries without any additional commentary or prefixes. 
-            Output must be in JSON format with 'title' and 'body' fields.
-            Focus on accuracy, clarity, and relevance to Indonesian stock market investors.""",
+                    """
+                    You are a financial analyst. Provide direct, concise summaries without any additional commentary or prefixes. 
+                    Output must be in JSON format with 'title' and 'body' fields.
+                    Focus on accuracy, clarity, and relevance to Indonesian stock market investors.
+                    """,
                 ),
                 (
                     "user",
-                    """Analyze this filing transaction and provide:
-            1. A title following this structure: (Shareholder name) (Transaction type) Shares of (Company)
-            2. A one-paragraph summary (max 150 tokens) focusing on: entities involved, transaction type, ownership changes, purpose, and significance
+                    """
+                    Analyze this filing transaction and provide:
+                    1. A title following this structure: 
+                        - if transaction type is sell or buy:
+                            (Shareholder name) (Transaction type) Shares of (Company)
+                        - if transaction type is others: 
+                            (Company) Shareholder (holder_name) Reports New Transaction
 
-            Filing: {text}
+                    2. A one-paragraph summary (max 150 tokens) focusing on: entities involved, transaction type, ownership changes, purpose, and significance
 
-            Note: 
-            - Use thousands separator with comma (e.g., 83,420,100) and use dot for decimal separator.
-            {format_instructions}""",
+                    Filing: {text}
+
+                    Note: 
+                        - CRITICAL: If the transaction type is classified as 'others', do NOT state "described as others" or mention the category name. 
+                            Instead, describe the specific underlying action as the transaction type.
+                        - Keep it factual, don't speculate.
+                        - Currency: IDR.
+                        - Use thousands separator with comma (e.g., 83,420,100) and use dot for decimal separator.
+                        - If prices exist, show one representative price like "IDR 490 per share".
+                        - If holdings_before/after exist, show the transition and delta if clear.
+                    
+                    Return with the following structure:
+                    {format_instructions}
+                    """,
                 ),
             ]
         )
