@@ -497,6 +497,7 @@ def sanitize_filing_article(data, generate=True):
         "body": body,
         "source": source,
         "tickers": tickers,
+        'symbols': tickers,
         "timestamp": timestamp.isoformat(),
         "sector": sector,
         "sub_sector": sub_sector,
