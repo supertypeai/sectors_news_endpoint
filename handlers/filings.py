@@ -582,7 +582,11 @@ def insert_insider_trading_supabase(data, format=True):
         new_article_for_news.pop("purpose", None)
         new_article_for_news.pop("company_name", None)
 
+        symbols = new_article_for_news.pop("symbols", [])
+        
         news_article = News.from_filing(Filing(**new_article_for_news))
+        news_article.symbols = symbols
+        
         response_news = (
             supabase.table("idx_news").insert(news_article.__dict__).execute()
         )
