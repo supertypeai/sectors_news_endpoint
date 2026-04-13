@@ -598,6 +598,7 @@ def insert_insider_trading_supabase(data, format=True):
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
+    inserted_filing.pop("symbols", None) 
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
 
