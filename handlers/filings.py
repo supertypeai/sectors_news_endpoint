@@ -499,7 +499,7 @@ def sanitize_filing_article(data, generate=True):
         "body": body,
         "source": source,
         "tickers": tickers,
-        'symbols': tickers[0] if tickers else None,
+        'symbol': tickers[0] if tickers else None,
         "timestamp": timestamp.isoformat(),
         "sector": sector,
         "sub_sector": sub_sector,
@@ -618,7 +618,7 @@ def insert_insider_trading_supabase(data, format=True):
         return {
             "status": "success",
             "id_filings": inserted_filing, #response.data[0],
-            "id_news": news_article, #response_news.data[0],
+            "id_news": news_article.to_dict(), #response_news.data[0],
             "status_code": 200,
         }
     else:
