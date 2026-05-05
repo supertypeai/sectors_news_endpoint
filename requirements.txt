@@ -33,3 +33,4 @@ cycler==0.12.1
 debugpy==1.8.2
 deep-translator
 PyMuPDF
+rapidfuzz
