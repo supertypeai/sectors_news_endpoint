@@ -598,17 +598,14 @@ def insert_insider_trading_supabase(data, format=True):
         )
     
     inserted_filing = new_article.copy()
-    if inserted_filing["tickers"]:
+    if not inserted_filing.get("symbol") and inserted_filing.get("tickers"):
         inserted_filing["symbol"] = inserted_filing["tickers"][0]
-    else:
-        inserted_filing["symbol"] = None
 
     # Add static value
     inserted_filing['source_is_manual'] = True
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
-    inserted_filing.pop("symbol", None) 
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
     inserted_filing.pop("context_data", None)
