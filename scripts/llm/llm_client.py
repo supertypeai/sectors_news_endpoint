@@ -4,7 +4,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
 from langchain_core.callbacks import BaseCallbackHandler
 
-from scripts.utils.settings import GROQ_API_KEY_DEV, GEMINI_API_KEY, GEMINI_API_KEY_BACKUP
+from scripts.utils.settings import GROQ_API_KEY, GEMINI_API_KEY, GEMINI_API_KEY_BACKUP
 from scripts.utils.constant import * 
 
 import logging 
@@ -172,7 +172,7 @@ def get_llm(model_name: str, temperature: float = 0.5):
     provider = config_model.get('provider')
     
     if provider == 'groq': 
-        api_keys = [GROQ_API_KEY_DEV]
+        api_keys = [GROQ_API_KEY]
         
     elif provider == 'google-genai': 
         api_keys = [GEMINI_API_KEY, GEMINI_API_KEY_BACKUP]
