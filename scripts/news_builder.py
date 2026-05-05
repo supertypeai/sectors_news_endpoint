@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langchain.chat_models import init_chat_model
 
 from scripts.llm.llm_client import get_llm
 from scripts.llm.prompt import *
@@ -112,40 +113,45 @@ def generate_news_title_body(record: dict):
         ('user', user_prompt )
     ])
 
-    for model in ['gpt-oss-120b', 'gpt-oss-20b', 'gemini-2.5-flash', 'llama-3.3-70b']:
-        try:
-            llm = get_llm(model, temperature=0.4)
-            LOGGER.info(f"LLM used for news: {model}")
+    # for model in ['gpt-oss-120b', 'gpt-oss-20b', 'gemini-2.5-flash', 'llama-3.3-70b']:
+    try:
+        llm = init_chat_model(
+            'gpt-oss-120b',
+            model_provider="groq"
+        )
 
-            context = record.get('context_data', {})
+        # llm = get_llm(model, temperature=0.4)
+        # LOGGER.info(f"LLM used for news: {model}")
 
-            formatted_context = format_context_transactions(context.get('transactions', []))
-            formatted_current_filing =  format_filing_for_prompt(record)
+        context = record.get('context_data', {})
 
-            input_data = {
-                'current_filing': formatted_current_filing,
-                'context_type': context.get('type', 'base'),
-                'context_transactions': formatted_context,
-                'format_instructions': format_instructions,
-            }
+        formatted_context = format_context_transactions(context.get('transactions', []))
+        formatted_current_filing =  format_filing_for_prompt(record)
 
-            llm_chain = prompt | llm | generation_parser
+        input_data = {
+            'current_filing': formatted_current_filing,
+            'context_type': context.get('type', 'base'),
+            'context_transactions': formatted_context,
+            'format_instructions': format_instructions,
+        }
 
-            response = llm_chain.invoke(input_data)
+        llm_chain = prompt | llm | generation_parser
 
-            if response is None:
-                LOGGER.warning("API call failed after all retries, trying next LLM...")
-                continue
+        response = llm_chain.invoke(input_data)
 
-            if not response.get("title") or not response.get("body"):
-                LOGGER.info("LLM news returned incomplete result")
-                continue
-            
-            return response.get('title'), response.get('body')
+        if response is None:
+            LOGGER.warning("API call failed after all retries, trying next LLM...")
+            return None 
 
-        except Exception as error:
-            LOGGER.warning(f"LLM failed with error: {error}", exc_info=True)
-            continue  
+        if not response.get("title") or not response.get("body"):
+            LOGGER.info("LLM news returned incomplete result")
+            return None 
+        
+        return response.get('title'), response.get('body')
 
-    LOGGER.error("All LLMs failed to return a valid generation for news")
-    return None
+    except Exception as error:
+        LOGGER.warning(f"LLM failed with error: {error}", exc_info=True)
+        return None   
+
+    # LOGGER.error("All LLMs failed to return a valid generation for news")
+    # return None
