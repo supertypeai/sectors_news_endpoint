@@ -9,7 +9,7 @@ import pytz
 timezone = pytz.timezone('Asia/Bangkok')
 
 class News:
-    def __init__(self, title, body, source, timestamp, sector, sub_sector, tags, tickers, dimension, score):
+    def __init__(self, title, body, source, timestamp, sector, sub_sector, tags, tickers, symbols, dimension, score):
         """
         Initializes the News object.
 
@@ -34,6 +34,7 @@ class News:
         self.tickers = tickers
         self.dimension = dimension
         self.score = score
+        self.symbols = symbols if symbols is not None else tickers
         
     def to_dict(self):
         """
@@ -50,6 +51,7 @@ class News:
             "sub_sector": self.sub_sector,
             "tags": self.tags,
             "tickers": self.tickers,
+            "symbols": self.symbols,
             "dimension": self.dimension,
             "score": self.score
         }
@@ -152,6 +154,7 @@ class News:
             sub_sector=sub_sector,
             tags=tags,
             tickers=tickers,
+            symbols=tickers,
             dimension=dimension,
             score=score
         )
@@ -185,6 +188,7 @@ class News:
             sub_sector=[filing.sub_sector],
             tags=filing.tags,
             tickers=filing.tickers,
+            symbols=filing.tickers,
             dimension=None,
             score=None
         )

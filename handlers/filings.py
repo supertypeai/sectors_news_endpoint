@@ -586,15 +586,16 @@ def insert_insider_trading_supabase(data, format=True):
         # Pop purpose 
         new_article_for_news.pop("purpose", None)
         new_article_for_news.pop("company_name", None)
+        new_article_for_news.pop("symbol", None)
 
-        symbols = new_article_for_news.pop("symbol", [])
+        # symbols = new_article_for_news.pop("symbol", [])
         
         news_article = News.from_filing(Filing(**new_article_for_news))
-        news_article.symbols = [symbols]
+        # news_article.symbols = [symbols]
         
-        # response_news = (
-        #     supabase.table("idx_news").insert(news_article.__dict__).execute()
-        # )
+        response_news = (
+            supabase.table("idx_news").insert(news_article.__dict__).execute()
+        )
     
     inserted_filing = new_article.copy()
     if inserted_filing["tickers"]:
@@ -612,19 +613,19 @@ def insert_insider_trading_supabase(data, format=True):
     inserted_filing.pop("company_name", None)
     inserted_filing.pop("context_data", None)
 
-    # response = supabase.table("idx_filings").insert(inserted_filing).execute()
+    response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
     if news:
         return {
             "status": "success",
-            "id_filings": inserted_filing, #response.data[0],
-            "id_news": news_article.to_dict(), #response_news.data[0],
+            "id_filings": response.data, 
+            "id_news": response_news.data, 
             "status_code": 200,
         }
     else:
         return {
             "status": "success",
-            "id_filings": inserted_filing, #response.data[0],
+            "id_filings": response.data,
             "status_code": 200,
         }
 
