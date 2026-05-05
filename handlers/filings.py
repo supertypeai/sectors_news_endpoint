@@ -579,7 +579,7 @@ def insert_insider_trading_supabase(data, format=True):
         new_article_for_news.update({'tags': tag})
         
         # Prepare summarize title and body with llm 
-        new_title, new_body = generate_news_title_body(new_article_for_news)
+        new_title, new_body = summarize_filing(new_article_for_news)
         new_article_for_news['title'] = new_title 
         new_article_for_news['body'] = new_body
 
