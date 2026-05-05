@@ -37,7 +37,7 @@ _KW_INHERIT = ["waris", "inheritance", "hibah", "grant", "bequest"]
 _KW_MESOP = ["mesop", "msop", "esop", "program opsi saham", "employee stock option"]
 _KW_FREEFLOAT = ["free float", "free-float", "freefloat", "pemenuhan porsi publik"]
 _KW_RESTRUCTURING = ["restrukturisasi", "restructuring", "reorganisasi", "penyelesaian penurunan modal"]
-_KW_REPURCHASE = ['repo', 'transaksi repurchase', 'transaksi repo']
+_KW_REPURCHASE = ['repo', 'transaksi repurchase', 'transaksi repo', 'repurchase agreement']
 _KW_PLACEMENT = ['penempatan saham revo', 'penempatan']
 
 

@@ -13,9 +13,11 @@ from scripts.summary_filings import summarize_filing, summarize_filing_manual
 from scripts.classifier import (
     get_tickers,
 )
+from scripts.builder import enrich
+from scripts.news_builder import generate_news_title_body
 from handlers.support import (
     safe_float, safe_int, clean_company_name, detect_tags_for_new_document,
-    convert_price_transaction, get_subsector_by_ticker, translator,
+    convert_price_transaction, get_subsector_by_ticker,
     INHERIT, MESOP, FREEFLOAT, TRANSFER
 )
 
@@ -490,14 +492,14 @@ def sanitize_filing_article(data, generate=True):
     final_tags = sorted(set(tags + detected_tags))
 
     # translate purpose 
-    purpose = translator(purpose)
+    # purpose = translator(purpose)
 
     new_article = {
         "title": title,
         "body": body,
         "source": source,
         "tickers": tickers,
-        'symbols': tickers,
+        'symbols': tickers[0] if tickers else None,
         "timestamp": timestamp.isoformat(),
         "sector": sector,
         "sub_sector": sub_sector,
@@ -520,17 +522,20 @@ def sanitize_filing_article(data, generate=True):
     }
 
     if generate:
-        new_title, new_body = summarize_filing_manual(
-            holder_name, company_name, transaction_type, 
-            amount_transaction, holding_before, holding_after, 
-            purpose
-        )
+        # new_title, new_body = summarize_filing_manual(
+        #     holder_name, company_name, transaction_type, 
+        #     amount_transaction, holding_before, holding_after, 
+        #     purpose
+        # )
 
-        if len(new_body) > 0:
-            new_article["body"] = new_body
+        # if len(new_body) > 0:
+        #     new_article["body"] = new_body
 
-        if len(new_title) > 0:
-            new_article["title"] = new_title
+        # if len(new_title) > 0:
+        #     new_article["title"] = new_title
+
+        enriched = enrich([new_article])
+        new_article = enriched[0] if enriched else new_article
 
     return new_article
 
@@ -574,7 +579,7 @@ def insert_insider_trading_supabase(data, format=True):
         new_article_for_news.update({'tags': tag})
         
         # Prepare summarize title and body with llm 
-        new_title, new_body = summarize_filing(new_article_for_news)
+        new_title, new_body = generate_news_title_body(new_article_for_news)
         new_article_for_news['title'] = new_title 
         new_article_for_news['body'] = new_body
 
@@ -582,14 +587,14 @@ def insert_insider_trading_supabase(data, format=True):
         new_article_for_news.pop("purpose", None)
         new_article_for_news.pop("company_name", None)
 
-        symbols = new_article_for_news.pop("symbols", [])
+        symbols = new_article_for_news.pop("symbol", [])
         
         news_article = News.from_filing(Filing(**new_article_for_news))
-        news_article.symbols = symbols
+        news_article.symbols = [symbols]
         
-        response_news = (
-            supabase.table("idx_news").insert(news_article.__dict__).execute()
-        )
+        # response_news = (
+        #     supabase.table("idx_news").insert(news_article.__dict__).execute()
+        # )
     
     inserted_filing = new_article.copy()
     if inserted_filing["tickers"]:
@@ -602,23 +607,24 @@ def insert_insider_trading_supabase(data, format=True):
 
     # Pop unused data
     inserted_filing.pop("tickers", None)
-    inserted_filing.pop("symbols", None) 
+    inserted_filing.pop("symbol", None) 
     inserted_filing.pop("purpose", None)
     inserted_filing.pop("company_name", None)
+    inserted_filing.pop("context_data", None)
 
-    response = supabase.table("idx_filings").insert(inserted_filing).execute()
+    # response = supabase.table("idx_filings").insert(inserted_filing).execute()
 
     if news:
         return {
             "status": "success",
-            "id_filings": response.data[0]["id"],
-            "id_news": response_news.data[0]["id"],
+            "id_filings": inserted_filing, #response.data[0],
+            "id_news": news_article, #response_news.data[0],
             "status_code": 200,
         }
     else:
         return {
             "status": "success",
-            "id_filings": response.data[0]["id"],
+            "id_filings": inserted_filing, #response.data[0],
             "status_code": 200,
         }
 

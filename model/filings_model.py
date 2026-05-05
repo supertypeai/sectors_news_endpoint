@@ -2,7 +2,36 @@ import json
 from datetime import datetime
 
 class Filing:
-    def __init__(self, title, body, source, timestamp, sector, sub_sector, tags, tickers, transaction_type, holder_type, holding_before, holding_after, share_percentage_before, share_percentage_after, share_percentage_transaction, amount_transaction, holder_name, price, transaction_value, price_transaction, UID=None):
+    def __init__(
+        self, 
+        title, 
+        body, 
+        source, 
+        timestamp, 
+        sector, 
+        sub_sector, 
+        tags, 
+        tickers, 
+        transaction_type, 
+        holder_type, 
+        holding_before, 
+        holding_after, 
+        share_percentage_before, 
+        share_percentage_after, 
+        share_percentage_transaction, 
+        amount_transaction, 
+        holder_name, 
+        price, 
+        transaction_value, 
+        price_transaction, 
+        UID=None, 
+        symbol=None, 
+        context_data=None, 
+        context=None, 
+        source_is_manual=None, 
+        idx_investor_slug=None, 
+        idx_conglomerates_group_slug=None
+    ):
         """
         Initializes the Filing object.
 
@@ -49,6 +78,12 @@ class Filing:
         self.transaction_value = transaction_value
         self.price_transaction = price_transaction
         self.UID = UID
+        self.symbol = symbol
+        self.context_data = context_data
+        self.context = context
+        self.source_is_manual = source_is_manual
+        self.idx_investor_slug = idx_investor_slug
+        self.idx_conglomerates_group_slug = idx_conglomerates_group_slug
 
     def to_json(self):
         """
