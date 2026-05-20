@@ -43,6 +43,13 @@ def fetch_six_month_history_map(supabase_client, key_lookup: str) -> dict:
     return history_map
 
 
+def parse_timestamp(timestamp_str: str | None) -> datetime:
+    if not timestamp_str:
+        return None
+    
+    return datetime.fromisoformat(timestamp_str.replace('T', ' '))
+
+
 def format_ordinal(number: int) -> str:
     if not isinstance(number, int):
         return str(number)
@@ -245,6 +252,9 @@ def generate_cross_stock_template(
         remaining_count = len(other_symbols) - 4
         formatted_symbols = f"{listed_symbols} and {remaining_count} other companies"
 
+    elif len(other_symbols) == 1:
+        formatted_symbols = other_symbols[0]
+    
     else:
         formatted_symbols = ", ".join(other_symbols[:-1]) + f" and {other_symbols[-1]}"
 
@@ -262,30 +272,42 @@ def filter_data_for_template(
     filings_based_holder_name: list[dict], 
     holder_name: str, 
     symbol: str, 
-    transaction_type: str
-): 
+    transaction_type: str,
+    current_timestamp: str
+):
+    current_dt = parse_timestamp(current_timestamp)
+    six_months_before_current_dt = current_dt - timedelta(days=180)
+
     buy_transactions = [
         transaction for transaction in filings_based_symbol
         if transaction.get('holder_name') != holder_name
         and transaction.get('transaction_type') == 'buy'
+        and parse_timestamp(transaction.get('timestamp', '')) < current_dt
+        and parse_timestamp(transaction.get('timestamp', '')) >= six_months_before_current_dt
     ]
 
     sell_transactions = [
         transaction for transaction in filings_based_symbol
         if transaction.get('holder_name') != holder_name
         and transaction.get('transaction_type') == 'sell'
+        and parse_timestamp(transaction.get('timestamp', '')) < current_dt
+        and parse_timestamp(transaction.get('timestamp', '')) >= six_months_before_current_dt
     ]
 
     repeated_holder_transactions = [
         transaction for transaction in filings_based_symbol
         if transaction.get('holder_name') == holder_name
         and transaction.get('transaction_type') == transaction_type
+        and parse_timestamp(transaction.get('timestamp', '')) < current_dt
+        and parse_timestamp(transaction.get('timestamp', '')) >= six_months_before_current_dt
     ]
 
     cross_stock_transactions = [
         transaction for transaction in filings_based_holder_name
         if transaction.get('symbol') != symbol
         and transaction.get('transaction_type') == transaction_type
+        and parse_timestamp(transaction.get('timestamp', '')) < current_dt
+        and parse_timestamp(transaction.get('timestamp', '')) >= six_months_before_current_dt
     ]
 
     return buy_transactions, sell_transactions, repeated_holder_transactions, cross_stock_transactions
@@ -446,6 +468,9 @@ def route_cross_stock_template(
         for transaction in cross_stock_transactions
     ) + int(current_value)
 
+    current_symbol = current_symbol.strip().removesuffix('.JK')
+    distinct_cross_symbols = [symbol.strip().removesuffix('.JK') for symbol in distinct_cross_symbols]
+
     body = generate_cross_stock_template(
         holder_name=holder_name,
         holder_type=holder_type,
@@ -456,17 +481,16 @@ def route_cross_stock_template(
     )
 
     all_symbols = [current_symbol] + distinct_cross_symbols
-    cleaned_symbols = [ticker.strip().removesuffix('.JK') for ticker in all_symbols]
-    total_symbol_count = len(cleaned_symbols)
+    total_symbol_count = len(all_symbols)
     transaction_verb = "bought" if transaction_type == 'buy' else "sold"
 
     if total_symbol_count > 2:
-        listed_symbols = ", ".join(cleaned_symbols[:2])
+        listed_symbols = ", ".join(all_symbols[:2])
         remaining_count = total_symbol_count - 2
         formatted_symbols = f"{listed_symbols} and {remaining_count} other {'company' if remaining_count == 1 else 'companies'}"
     
     else:
-        formatted_symbols = " and ".join(cleaned_symbols)
+        formatted_symbols = " and ".join(all_symbols)
 
     context = f"{holder_name} {transaction_verb} {formatted_symbols} in the last 6 months."
 
@@ -482,7 +506,7 @@ def route_body_template(
     holder_name = current_filing.get('holder_name', '')
     holder_type = current_filing.get('holder_type', '')
     company_name = current_filing.get('company_name', '')
-
+    current_timestamp = current_filing.get('timestamp')
     transaction_type = current_filing.get('transaction_type', '')
     current_value = current_filing.get('transaction_value', 0)
     start_percentage = current_filing.get('share_percentage_before', 0.0)
@@ -504,6 +528,7 @@ def route_body_template(
             holder_name=holder_name,
             symbol=symbol,
             transaction_type=transaction_type,
+            current_timestamp=current_timestamp
         )
     )
 
@@ -522,6 +547,7 @@ def route_body_template(
         transaction_type=transaction_type,
         symbol=symbol,
     )
+
     if cluster_result is not None:
         cluster_body, cluster_context = cluster_result
         used_transactions = buy_transactions if transaction_type == 'buy' else sell_transactions
@@ -536,6 +562,7 @@ def route_body_template(
         start_percentage=start_percentage,
         current_percentage=current_percentage,
     )
+
     if chain_result is not None:
         chain_body, chain_context = chain_result
         return chain_body, {"type": "chain", "transactions": repeated_holder_transactions}, chain_context
@@ -548,6 +575,7 @@ def route_body_template(
         current_symbol=symbol,
         current_value=current_value,
     )
+
     if cross_stock_result is not None:
         cross_stock_body, cross_stock_context = cross_stock_result
         return cross_stock_body, {"type": "cross_stock", "transactions": cross_stock_transactions}, cross_stock_context
@@ -610,6 +638,16 @@ def enrich(payload: list[dict]):
             result = matching_investor_and_conglomerates(result)
 
             result['source_is_manual'] = False
+
+            symbol = record.get('symbol')
+            holder_name = record.get('holder_name')
+
+            if symbol:
+                filing_symbol_lookup[symbol].append(record)
+
+            if holder_name:
+                filing_holder_name_lookup[holder_name].append(record)
+
             payload_results.append(result)
 
         except Exception as error:
