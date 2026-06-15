@@ -5,6 +5,8 @@ from typing import Optional
 from scripts.utils.settings import SUPABASE_CLIENT
 from scripts.utils.translator import translator
 from scripts.utils.matching import matching_investor_and_conglomerates
+from scripts.utils.highlight import build_highlights
+from scripts.utils.matching import get_db 
 
 import logging 
 
@@ -624,7 +626,16 @@ def enrich(payload: list[dict]):
     filing_symbol_lookup = fetch_six_month_history_map(SUPABASE_CLIENT, 'symbol')
     filing_holder_name_lookup = fetch_six_month_history_map(SUPABASE_CLIENT, 'holder_name')
 
-    for record in payload: 
+    idx_investor = get_db(SUPABASE_CLIENT, 'people')
+    idx_conglomerates = get_db(SUPABASE_CLIENT, 'conglomerates')
+    idx_filings = get_db(SUPABASE_CLIENT, 'idx_filings')
+
+    payload_sorted = sorted(
+        payload,
+        key=lambda record: record.get('timestamp', '')
+    )
+    
+    for record in payload_sorted: 
         if not isinstance(record, dict):
             continue
 
@@ -635,7 +646,11 @@ def enrich(payload: list[dict]):
                 filing_holder_name_map=filing_holder_name_lookup
             )
 
-            result = matching_investor_and_conglomerates(result)
+            result = matching_investor_and_conglomerates(
+                filing=result,
+                idx_investor=idx_investor, 
+                idx_conglomerates=idx_conglomerates
+            )
 
             result['source_is_manual'] = False
 
@@ -647,6 +662,16 @@ def enrich(payload: list[dict]):
 
             if holder_name:
                 filing_holder_name_lookup[holder_name].append(record)
+
+            idx_filings.append(record)
+
+            highlights = build_highlights(
+                client=SUPABASE_CLIENT, 
+                db_filings=idx_filings, 
+                current_filing=record
+            )
+
+            record['highlights'] = highlights if highlights else None 
 
             payload_results.append(result)
 
