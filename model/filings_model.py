@@ -29,8 +29,9 @@ class Filing:
         context_data=None, 
         context=None, 
         source_is_manual=None, 
-        idx_investor_slug=None, 
-        idx_conglomerates_group_slug=None
+        idx_investor_slug=None,
+        idx_conglomerates_group_slug=None,
+        highlights=None
     ):
         """
         Initializes the Filing object.
@@ -84,6 +85,7 @@ class Filing:
         self.source_is_manual = source_is_manual
         self.idx_investor_slug = idx_investor_slug
         self.idx_conglomerates_group_slug = idx_conglomerates_group_slug
+        self.highlights = highlights
 
     def to_json(self):
         """
