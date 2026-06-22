@@ -9,10 +9,7 @@ from model.news_model import News
 from model.price_transaction import PriceTransaction
 from scripts.pdf_reader import extract_from_pdf
 from scripts.generate_article import generate_article_filings
-from scripts.summary_filings import summarize_filing, summarize_filing_manual
-from scripts.classifier import (
-    get_tickers,
-)
+from scripts.summary_filings import summarize_filing, summarize_filing_manual, FilingSummarizer
 from scripts.builder import enrich
 from scripts.news_builder import generate_news_title_body
 from handlers.support import (
@@ -152,6 +149,53 @@ def update_insider_trading():
     input_data = request.get_json()
     result = update_insider_trading_supabase(input_data, True)
     return jsonify(result), result.get("status_code")
+
+
+@filings_module.route("/sgx-insider-trading", methods=["POST"])
+@require_api_key
+def add_sgx_insider_trading():
+    input_data = request.get_json() 
+    
+    summarizer = FilingSummarizer(source='sgx')
+
+    for record in input_data:
+        title, body = summarizer.summarize_filing(data=record)
+
+        record['title'] = title
+        record['body'] = body
+
+    final_payload = [
+        {
+            'title': record['title'],
+            'body': record['body'],
+            'source': record.get('source'),
+            'timestamp': record.get('timestamp'),
+            'sector': record.get('sector'),
+            'sub_sector': [record['sub_sector']],
+            'tags': ['Insider Trading'],
+            'symbols': [record['symbol']],
+            'dimension': None,
+            'votes': None,
+            'score': None,
+            'thumbnail': None
+        }
+        for record in input_data
+    ]
+
+    response = (
+        supabase
+        .table('sgx_news')
+        .insert(final_payload)
+        .execute()
+    )
+
+    return jsonify(
+        {
+            "status": "success",
+            "length": f"{len(response.data)}",
+            "message": "inserted to sgx_news"
+        }
+    ), 200
 
 
 def sanitize_filing(data):
