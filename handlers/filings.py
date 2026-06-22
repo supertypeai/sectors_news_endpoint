@@ -182,20 +182,7 @@ def add_sgx_insider_trading():
         for record in input_data
     ]
 
-    response = (
-        supabase
-        .table('sgx_news')
-        .insert(final_payload)
-        .execute()
-    )
-
-    return jsonify(
-        {
-            "status": "success",
-            "length": f"{len(response.data)}",
-            "message": "inserted to sgx_news"
-        }
-    ), 200
+    return jsonify({"data": final_payload}), 200
 
 
 def sanitize_filing(data):
