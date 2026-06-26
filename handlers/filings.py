@@ -516,6 +516,10 @@ def sanitize_filing_article(data, generate=True):
     purpose = data.get('purpose', None)
 
     tags = data.get('tags') or []
+    
+    if isinstance(tags, str):
+        tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        
     detected_tags = detect_tags_for_new_document(
             purpose, share_percentage_before, 
             share_percentage_after, transaction_type, price_transactions
